@@ -4,6 +4,7 @@
 use std::process;
 use std::sync::Mutex;
 use std::time::Duration;
+use flume::{Receiver, Sender};
 use hearth_interconnect::messages::Message;
 use kafka;
 use kafka::consumer::Consumer;
@@ -11,10 +12,13 @@ use kafka::producer::{Producer, Record, RequiredAcks};
 use log::{debug, error, info, warn};
 use openssl;
 use snafu::Whatever;
+use crate::InternalIPC;
 use self::kafka::client::{FetchOffset, KafkaClient, SecurityConfig};
 use self::openssl::ssl::{SslConnector, SslFiletype, SslMethod, SslVerifyMode};
 
-pub fn init_connector(broker: String) {
+
+pub fn init_connector(broker: String,sender: Sender<InternalIPC>,receiver: Receiver<InternalIPC>) {
+
     let brokers = vec![broker];
 
     let producer : Producer = initialize_producer(initialize_client(&brokers));
