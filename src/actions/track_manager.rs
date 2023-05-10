@@ -1,4 +1,4 @@
-use crate::Charcoal;
+use crate::PlayerObject;
 
 trait TrackManager {
     fn set_playback_volume(&self);
@@ -10,7 +10,7 @@ trait TrackManager {
     fn pause_playback(&self);
 }
 
-impl TrackManager for Charcoal {
+impl TrackManager for PlayerObject {
     fn set_playback_volume(&self) {}
     fn force_stop_loop(&self) {}
     fn loop_indefinitely(&self) {}
