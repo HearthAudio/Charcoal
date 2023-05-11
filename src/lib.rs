@@ -2,10 +2,12 @@ use hearth_interconnect::messages::JobRequest;
 use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::{Receiver, Sender};
+use crate::actions::awaiters::AwaitAction;
 use crate::connector::init_connector;
 
 mod connector;
 mod actions;
+mod events;
 
 #[derive(Clone)]
 pub enum StandardActionType {
@@ -25,6 +27,7 @@ pub struct InternalIPC {
     worker_id: String,
     job_id: String,
     queue_job_request: Option<JobRequest>,
+    await_hook: Option<AwaitAction>
 }
 
 pub struct PlayerObject {

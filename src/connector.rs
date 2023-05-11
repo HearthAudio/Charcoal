@@ -1,6 +1,7 @@
 // Internal connector
 
 
+use std::collections::HashMap;
 use std::process;
 use std::sync::Mutex;
 use std::time::Duration;
@@ -9,10 +10,12 @@ use kafka;
 use kafka::consumer::Consumer;
 use kafka::producer::{Producer, Record, RequiredAcks};
 use log::{debug, error, info, warn};
+use nanoid::nanoid;
 use openssl;
 use snafu::Whatever;
 use tokio::sync::broadcast::{Receiver, Sender};
 use crate::{InternalIPC, InternalIPCType, StandardActionType};
+use crate::actions::awaiters::AwaitAction;
 use self::kafka::client::{FetchOffset, KafkaClient, SecurityConfig};
 use self::openssl::ssl::{SslConnector, SslFiletype, SslMethod, SslVerifyMode};
 
@@ -123,6 +126,7 @@ pub fn initialize_consume(brokers: Vec<String>, mut producer: Producer, tx: Send
         .with_topic(String::from("communication"))
         .create()
         .unwrap();
+    let mut await_hooks: HashMap<String,AwaitAction> = HashMap::new();
 
     loop {
         let mss = consumer.poll().unwrap();
@@ -151,6 +155,10 @@ pub fn initialize_consume(brokers: Vec<String>, mut producer: Producer, tx: Send
         let res = rx.try_recv();
         match res {
             Ok(msg) => {
+                let request_id = nanoid!();
+                if msg.await_hook.is_some() {
+                    await_hooks.insert(request_id,msg.await_hook.unwrap());
+                }
                 match msg.action {
                     InternalIPCType::DWCAction(..) => {
                         send_message(&Message {
@@ -158,7 +166,7 @@ pub fn initialize_consume(brokers: Vec<String>, mut producer: Producer, tx: Send
                             analytics: None,
                             queue_job_request: None,
                             queue_job_internal: None,
-                            request_id: "".to_string(),
+                            request_id: request_id.clone(),
                             worker_id: None,
                             direct_worker_communication: msg.dwc,
                             external_queue_job_response: None,
@@ -172,7 +180,7 @@ pub fn initialize_consume(brokers: Vec<String>, mut producer: Producer, tx: Send
                             analytics: None,
                             queue_job_request: msg.queue_job_request,
                             queue_job_internal: None,
-                            request_id: "".to_string(),
+                            request_id: request_id.clone(),
                             worker_id: None,
                             direct_worker_communication: None,
                             external_queue_job_response: None,
