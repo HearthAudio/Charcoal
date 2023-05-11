@@ -91,14 +91,13 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
             return Ok(());
         }
     };
-    let r = ctx.data.read().await;
+    let mut r = ctx.data.write().await;
     let manager = r.get::<CharcoalKey>().unwrap();
 
     let handler = manager.new_player();
     handler.join_channel(guild_id.to_string(),connect_to.to_string());
 
-    ctx.data.write().await.insert::<PlayerObjectKey>(handler);
-
+    r.insert::<PlayerObjectKey>(handler);
 
     Ok(())
 }
@@ -139,8 +138,9 @@ async fn play(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
         return Ok(());
     }
 
-
+    println!("GET LOCK");
     let r = ctx.data.read().await;
+    println!("GOT LOCK");
     let manager = r.get::<PlayerObjectKey>().unwrap();
     manager.play_from_http(url);
     check_msg(msg.channel_id.say(&ctx.http, "Playing song").await);

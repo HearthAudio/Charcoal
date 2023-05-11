@@ -6,6 +6,7 @@ use crate::{InternalIPC, InternalIPCType, PlayerObject, StandardActionType};
 pub trait ChannelManager {
     fn join_channel(&self,guild_id: String,voice_channel_id: String);
     fn exit_channel(&self);
+    fn joined_channel_result(&mut self,job_id: String,worker_id: String);
 }
 
 impl ChannelManager for PlayerObject {
@@ -20,7 +21,6 @@ impl ChannelManager for PlayerObject {
                 voice_channel_id,
             })
         });
-        println!("Sent!s");
         match r {
             Ok(_) => {},
             Err(e) => error!("Error: {}",e)
@@ -47,5 +47,9 @@ impl ChannelManager for PlayerObject {
             Ok(_) => {},
             Err(e) => error!("Error: {}",e)
         }
+    }
+    fn joined_channel_result(&mut self,job_id: String,worker_id: String) {
+        self.job_id = Some(job_id);
+        self.worker_id = Some(worker_id);
     }
 }

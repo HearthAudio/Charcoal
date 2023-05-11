@@ -155,12 +155,9 @@ pub fn initialize_consume(brokers: Vec<String>, mut producer: Producer, _tx: Sen
         let res = rx.try_recv();
         match res {
             Ok(msg) => {
-                println!("New MSG");
-                println!("{:?}",msg.action);
                 let request_id = nanoid!();
                 match msg.action {
                     InternalIPCType::StandardAction(StandardActionType::JoinChannel) => {
-                        println!("MATCH JOIN");
                         send_message(&Message {
                             message_type: MessageType::ExternalQueueJob,
                             analytics: None,
