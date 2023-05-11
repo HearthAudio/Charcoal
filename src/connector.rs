@@ -4,15 +4,15 @@
 use std::process;
 use std::sync::Mutex;
 use std::time::Duration;
-use flume::{Receiver, Sender};
-use hearth_interconnect::messages::Message;
+use hearth_interconnect::messages::{JobRequest, Message, MessageType};
 use kafka;
 use kafka::consumer::Consumer;
 use kafka::producer::{Producer, Record, RequiredAcks};
 use log::{debug, error, info, warn};
 use openssl;
 use snafu::Whatever;
-use crate::InternalIPC;
+use tokio::sync::broadcast::{Receiver, Sender};
+use crate::{InternalIPC, InternalIPCType, StandardActionType};
 use self::kafka::client::{FetchOffset, KafkaClient, SecurityConfig};
 use self::openssl::ssl::{SslConnector, SslFiletype, SslMethod, SslVerifyMode};
 
@@ -23,7 +23,7 @@ pub fn init_connector(broker: String,sender: Sender<InternalIPC>,receiver: Recei
 
     let producer : Producer = initialize_producer(initialize_client(&brokers));
 
-    initialize_consume(brokers,producer);
+    initialize_consume(brokers,producer,sender,receiver);
 }
 
 pub fn initialize_client(brokers: &Vec<String>) -> KafkaClient {
@@ -118,7 +118,7 @@ fn parse_message(parsed_message: Message, mut producer: &mut Producer) -> Result
 
 
 
-pub fn initialize_consume(brokers: Vec<String>, mut producer: Producer) {
+pub fn initialize_consume(brokers: Vec<String>, mut producer: Producer, tx: Sender<InternalIPC>, mut rx: Receiver<InternalIPC>) {
     let mut consumer = Consumer::from_client(initialize_client(&brokers))
         .with_topic(String::from("communication"))
         .create()
@@ -147,6 +147,43 @@ pub fn initialize_consume(brokers: Vec<String>, mut producer: Producer) {
             let _ = consumer.consume_messageset(ms);
         }
         consumer.commit_consumed().unwrap();
+
+        let res = rx.try_recv();
+        match res {
+            Ok(msg) => {
+                match msg.action {
+                    InternalIPCType::DWCAction(..) => {
+                        send_message(&Message {
+                            message_type: MessageType::DirectWorkerCommunication,
+                            analytics: None,
+                            queue_job_request: None,
+                            queue_job_internal: None,
+                            request_id: "".to_string(),
+                            worker_id: None,
+                            direct_worker_communication: msg.dwc,
+                            external_queue_job_response: None,
+                            job_event: None,
+                            error_report: None,
+                        },"communication",&mut producer)
+                    },
+                    InternalIPCType::StandardAction(StandardActionType::JoinChannel) => {
+                        send_message(&Message {
+                            message_type: MessageType::DirectWorkerCommunication,
+                            analytics: None,
+                            queue_job_request: msg.queue_job_request,
+                            queue_job_internal: None,
+                            request_id: "".to_string(),
+                            worker_id: None,
+                            direct_worker_communication: None,
+                            external_queue_job_response: None,
+                            job_event: None,
+                            error_report: None,
+                        },"communication",&mut producer)
+                    }
+                }
+            },
+            Err(e) => {}
+        }
     }
 }
 

@@ -8,7 +8,7 @@ trait Player {
 
 impl Player for PlayerObject {
     fn play_from_http(&self,url: String) {
-        let _ = self.tx.send_async(InternalIPC {
+        let _ = self.tx.send(InternalIPC {
             action: InternalIPCType::DWCAction(DWCActionType::PlayDirectLink),
             dwc: Some(DirectWorkerCommunication {
                 job_id: self.job_id.clone().unwrap(),
@@ -26,7 +26,7 @@ impl Player for PlayerObject {
         });
     }
     fn play_from_youtube(&self,url: String) {
-        let _ = self.tx.send_async(InternalIPC {
+        let _ = self.tx.send(InternalIPC {
             action: InternalIPCType::DWCAction(DWCActionType::PlayFromYoutube),
             dwc: Some(DirectWorkerCommunication {
                 job_id: self.job_id.clone().unwrap(),

@@ -1,23 +1,25 @@
-use flume::{Receiver, Sender};
 use hearth_interconnect::messages::JobRequest;
 use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
+use tokio::sync::broadcast;
+use tokio::sync::broadcast::{Receiver, Sender};
 use crate::connector::init_connector;
 
 mod connector;
 mod actions;
 
-enum StandardActionType {
-    JoinChannel,
-    ExitChannel
+#[derive(Clone)]
+pub enum StandardActionType {
+    JoinChannel
 }
 
-
-enum InternalIPCType {
+#[derive(Clone)]
+pub enum InternalIPCType {
     DWCAction(DWCActionType),
     StandardAction(StandardActionType)
 }
 
-struct InternalIPC {
+#[derive(Clone)]
+pub struct InternalIPC {
     action: InternalIPCType,
     dwc: Option<DirectWorkerCommunication>,
     worker_id: String,
@@ -43,7 +45,7 @@ impl Charcoal {
     pub fn new_player(&self) -> PlayerObject {
         PlayerObject {
             tx: self.tx.clone(),
-            rx: self.rx.clone(),
+            rx: self.tx.subscribe(),
             worker_id: None,
             job_id: None,
             guild_id: None,
@@ -53,10 +55,10 @@ impl Charcoal {
 }
 
 pub fn init_charcoal() -> Charcoal {
-    let (tx, rx) : (Sender<InternalIPC>,Receiver<InternalIPC>) = flume::bounded(1);
-    init_connector("".to_string(),tx.clone(),rx.clone());
+    let (tx, rx) : (Sender<InternalIPC>,Receiver<InternalIPC>) = broadcast::channel(16);
+    init_connector("".to_string(),tx.clone(),rx);
     return Charcoal {
         tx: tx.clone(),
-        rx: rx.clone()
+        rx: tx.subscribe()
     }
 }

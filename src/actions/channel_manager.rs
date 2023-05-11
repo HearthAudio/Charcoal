@@ -9,7 +9,7 @@ trait ChannelManager {
 
 impl ChannelManager for PlayerObject {
     fn join_channel(&self,guild_id: String,voice_channel_id: String) {
-        let _ = self.tx.send_async(InternalIPC {
+        let _ = self.tx.send(InternalIPC {
             action: InternalIPCType::DWCAction(DWCActionType::PlayDirectLink),
             dwc: None,
             worker_id: self.worker_id.clone().unwrap(),
@@ -21,7 +21,7 @@ impl ChannelManager for PlayerObject {
         });
     }
     fn exit_channel(&self) {
-        let _ = self.tx.send_async(InternalIPC {
+        let _ = self.tx.send(InternalIPC {
             action: InternalIPCType::DWCAction(DWCActionType::LeaveChannel),
             dwc: Some(DirectWorkerCommunication {
                 job_id: self.job_id.clone().unwrap(),
