@@ -3,7 +3,7 @@ use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCAc
 use log::error;
 use crate::{InternalIPC, InternalIPCType, PlayerObject};
 
-trait TrackManager {
+pub trait TrackManager {
     fn set_playback_volume(&self,playback_volume: f32);
     fn force_stop_loop(&self);
     fn loop_indefinitely(&self);

@@ -3,7 +3,7 @@ use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCAc
 use log::error;
 use crate::{InternalIPC, InternalIPCType, PlayerObject};
 
-trait ChannelManager {
+pub trait ChannelManager {
     fn join_channel(&self,guild_id: String,voice_channel_id: String);
     fn exit_channel(&self);
 }

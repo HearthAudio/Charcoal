@@ -2,7 +2,7 @@ use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCAc
 use log::error;
 use crate::{PlayerObject, InternalIPC, InternalIPCType};
 
-trait Player {
+pub trait Player {
     fn play_from_http(&self,url: String);
     fn play_from_youtube(&self,url: String);
 }

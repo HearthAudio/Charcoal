@@ -6,8 +6,9 @@ use crate::connector::init_connector;
 use crate::logger::setup_logger;
 
 mod connector;
-mod actions;
+pub mod actions;
 mod logger;
+pub mod serenity;
 
 #[derive(Clone)]
 pub enum StandardActionType {
