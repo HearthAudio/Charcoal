@@ -10,18 +10,18 @@ pub mod actions;
 mod logger;
 pub mod serenity;
 
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub enum StandardActionType {
     JoinChannel
 }
 
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub enum InternalIPCType {
     DWCAction(DWCActionType),
     StandardAction(StandardActionType)
 }
 
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct InternalIPC {
     action: InternalIPCType,
     dwc: Option<DirectWorkerCommunication>,
@@ -57,12 +57,12 @@ impl Charcoal {
     }
 }
 
-pub fn init_charcoal() -> Charcoal {
+pub fn init_charcoal(broker: String) -> Charcoal {
     let (tx, rx) : (Sender<InternalIPC>,Receiver<InternalIPC>) = broadcast::channel(16);
     let con_tx = tx.clone();
     setup_logger().expect("Failed to Init Logger - Charcoal");
     tokio::task::spawn(async move {
-        init_connector("".to_string(),con_tx,rx);
+        init_connector(broker,con_tx,rx);
     });
     return Charcoal {
         tx: tx.clone(),

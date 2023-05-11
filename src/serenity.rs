@@ -14,12 +14,12 @@ impl TypeMapKey for CharcoalKey {
 
 pub trait SerenityInit {
     #[must_use]
-    fn register_charcoal(self) -> Self;
+    fn register_charcoal(self,broker: String) -> Self;
 }
 
 impl SerenityInit for ClientBuilder {
-    fn register_charcoal(self) -> Self {
-        self.type_map_insert::<CharcoalKey>(init_charcoal())
+    fn register_charcoal(self,broker: String) -> Self {
+        self.type_map_insert::<CharcoalKey>(init_charcoal(broker))
     }
 }
 

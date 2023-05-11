@@ -155,8 +155,25 @@ pub fn initialize_consume(brokers: Vec<String>, mut producer: Producer, _tx: Sen
         let res = rx.try_recv();
         match res {
             Ok(msg) => {
+                println!("New MSG");
+                println!("{:?}",msg.action);
                 let request_id = nanoid!();
                 match msg.action {
+                    InternalIPCType::StandardAction(StandardActionType::JoinChannel) => {
+                        println!("MATCH JOIN");
+                        send_message(&Message {
+                            message_type: MessageType::ExternalQueueJob,
+                            analytics: None,
+                            queue_job_request: msg.queue_job_request,
+                            queue_job_internal: None,
+                            request_id: request_id.clone(),
+                            worker_id: None,
+                            direct_worker_communication: None,
+                            external_queue_job_response: None,
+                            job_event: None,
+                            error_report: None,
+                        },"communication",&mut producer)
+                    }
                     InternalIPCType::DWCAction(..) => {
                         send_message(&Message {
                             message_type: MessageType::DirectWorkerCommunication,
@@ -171,20 +188,6 @@ pub fn initialize_consume(brokers: Vec<String>, mut producer: Producer, _tx: Sen
                             error_report: None,
                         },"communication",&mut producer)
                     },
-                    InternalIPCType::StandardAction(StandardActionType::JoinChannel) => {
-                        send_message(&Message {
-                            message_type: MessageType::DirectWorkerCommunication,
-                            analytics: None,
-                            queue_job_request: msg.queue_job_request,
-                            queue_job_internal: None,
-                            request_id: request_id.clone(),
-                            worker_id: None,
-                            direct_worker_communication: None,
-                            external_queue_job_response: None,
-                            job_event: None,
-                            error_report: None,
-                        },"communication",&mut producer)
-                    }
                 }
             },
             Err(_e) => {}

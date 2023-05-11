@@ -1,7 +1,7 @@
 use hearth_interconnect::messages::JobRequest;
 use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
 use log::error;
-use crate::{InternalIPC, InternalIPCType, PlayerObject};
+use crate::{InternalIPC, InternalIPCType, PlayerObject, StandardActionType};
 
 pub trait ChannelManager {
     fn join_channel(&self,guild_id: String,voice_channel_id: String);
@@ -11,15 +11,16 @@ pub trait ChannelManager {
 impl ChannelManager for PlayerObject {
     fn join_channel(&self,guild_id: String,voice_channel_id: String) {
         let r = self.tx.send(InternalIPC {
-            action: InternalIPCType::DWCAction(DWCActionType::PlayDirectLink),
+            action: InternalIPCType::StandardAction(StandardActionType::JoinChannel),
             dwc: None,
-            worker_id: self.worker_id.clone().unwrap(),
-            job_id: self.job_id.clone().unwrap(),
+            worker_id: "".to_string(),
+            job_id: "".to_string(),
             queue_job_request: Some(JobRequest {
                 guild_id,
                 voice_channel_id,
             })
         });
+        println!("Sent!s");
         match r {
             Ok(_) => {},
             Err(e) => error!("Error: {}",e)

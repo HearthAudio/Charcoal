@@ -60,7 +60,7 @@ async fn main() {
     let mut client = Client::builder(&token, intents)
         .event_handler(Handler)
         .framework(framework)
-        .register_charcoal()
+        .register_charcoal("kafka-185690f4-maxall4-aea3.aivencloud.com:23552".to_string())
         .await
         .expect("Err creating client");
 
