@@ -1,11 +1,11 @@
 // Internal connector
 
 
-use std::collections::HashMap;
+
 use std::process;
-use std::sync::Mutex;
+
 use std::time::Duration;
-use hearth_interconnect::messages::{JobRequest, Message, MessageType};
+use hearth_interconnect::messages::{Message, MessageType};
 use kafka;
 use kafka::consumer::Consumer;
 use kafka::producer::{Producer, Record, RequiredAcks};
@@ -111,7 +111,7 @@ pub fn initialize_producer(client: KafkaClient) -> Producer {
     return producer;
 }
 
-fn parse_message(parsed_message: Message, mut producer: &mut Producer) -> Result<(),Whatever> {
+fn parse_message(parsed_message: Message, _producer: &mut Producer) -> Result<(),Whatever> {
     match parsed_message.message_type {
         _ => {}
     }
@@ -120,7 +120,7 @@ fn parse_message(parsed_message: Message, mut producer: &mut Producer) -> Result
 
 
 
-pub fn initialize_consume(brokers: Vec<String>, mut producer: Producer, tx: Sender<InternalIPC>, mut rx: Receiver<InternalIPC>) {
+pub fn initialize_consume(brokers: Vec<String>, mut producer: Producer, _tx: Sender<InternalIPC>, mut rx: Receiver<InternalIPC>) {
     let mut consumer = Consumer::from_client(initialize_client(&brokers))
         .with_topic(String::from("communication"))
         .create()
@@ -185,7 +185,7 @@ pub fn initialize_consume(brokers: Vec<String>, mut producer: Producer, tx: Send
                     }
                 }
             },
-            Err(e) => {}
+            Err(_e) => {}
         }
     }
 }
