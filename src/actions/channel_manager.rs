@@ -1,5 +1,6 @@
 use hearth_interconnect::messages::JobRequest;
 use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
+use log::error;
 use crate::{InternalIPC, InternalIPCType, PlayerObject};
 
 trait ChannelManager {
@@ -9,7 +10,7 @@ trait ChannelManager {
 
 impl ChannelManager for PlayerObject {
     fn join_channel(&self,guild_id: String,voice_channel_id: String) {
-        let _ = self.tx.send(InternalIPC {
+        let r = self.tx.send(InternalIPC {
             action: InternalIPCType::DWCAction(DWCActionType::PlayDirectLink),
             dwc: None,
             worker_id: self.worker_id.clone().unwrap(),
@@ -19,9 +20,13 @@ impl ChannelManager for PlayerObject {
                 voice_channel_id,
             })
         });
+        match r {
+            Ok(_) => {},
+            Err(e) => error!("Error: {}",e)
+        }
     }
     fn exit_channel(&self) {
-        let _ = self.tx.send(InternalIPC {
+        let r = self.tx.send(InternalIPC {
             action: InternalIPCType::DWCAction(DWCActionType::LeaveChannel),
             dwc: Some(DirectWorkerCommunication {
                 job_id: self.job_id.clone().unwrap(),
@@ -37,5 +42,9 @@ impl ChannelManager for PlayerObject {
             job_id: self.job_id.clone().unwrap(),
             queue_job_request: None,
         });
+        match r {
+            Ok(_) => {},
+            Err(e) => error!("Error: {}",e)
+        }
     }
 }

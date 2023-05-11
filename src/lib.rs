@@ -3,9 +3,11 @@ use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCAc
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::{Receiver, Sender};
 use crate::connector::init_connector;
+use crate::logger::setup_logger;
 
 mod connector;
 mod actions;
+mod logger;
 
 #[derive(Clone)]
 pub enum StandardActionType {
@@ -57,6 +59,7 @@ impl Charcoal {
 pub fn init_charcoal() -> Charcoal {
     let (tx, rx) : (Sender<InternalIPC>,Receiver<InternalIPC>) = broadcast::channel(16);
     let con_tx = tx.clone();
+    setup_logger().expect("Failed to Init Logger - Charcoal");
     tokio::task::spawn(async move {
         init_connector("".to_string(),con_tx,rx);
     });

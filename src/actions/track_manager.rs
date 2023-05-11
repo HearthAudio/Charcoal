@@ -1,5 +1,6 @@
 use std::time::Duration;
 use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
+use log::error;
 use crate::{InternalIPC, InternalIPCType, PlayerObject};
 
 trait TrackManager {
@@ -15,7 +16,7 @@ trait TrackManager {
 impl TrackManager for PlayerObject {
     fn set_playback_volume(&self,playback_volume: f32) {
         let action_type = DWCActionType::SetPlaybackVolume;
-        let _ = self.tx.send(InternalIPC {
+        let r = self.tx.send(InternalIPC {
             action: InternalIPCType::DWCAction(action_type.clone()),
             dwc: Some(DirectWorkerCommunication {
                 job_id: self.job_id.clone().unwrap(),
@@ -31,10 +32,14 @@ impl TrackManager for PlayerObject {
             job_id: self.job_id.clone().unwrap(),
             queue_job_request: None,
         });
+        match r {
+            Ok(_) => {},
+            Err(e) => error!("Error: {}",e)
+        }
     }
     fn force_stop_loop(&self) {
         let action_type = DWCActionType::ForceStopLoop;
-        let _ = self.tx.send(InternalIPC {
+        let r = self.tx.send(InternalIPC {
             action: InternalIPCType::DWCAction(action_type.clone()),
             dwc: Some(DirectWorkerCommunication {
                 job_id: self.job_id.clone().unwrap(),
@@ -50,10 +55,14 @@ impl TrackManager for PlayerObject {
             job_id: self.job_id.clone().unwrap(),
             queue_job_request: None,
         });
+        match r {
+            Ok(_) => {},
+            Err(e) => error!("Error: {}",e)
+        }
     }
     fn loop_indefinitely(&self) {
         let action_type = DWCActionType::LoopForever;
-        let _ = self.tx.send(InternalIPC {
+        let r = self.tx.send(InternalIPC {
             action: InternalIPCType::DWCAction(action_type.clone()),
             dwc: Some(DirectWorkerCommunication {
                 job_id: self.job_id.clone().unwrap(),
@@ -69,10 +78,14 @@ impl TrackManager for PlayerObject {
             job_id: self.job_id.clone().unwrap(),
             queue_job_request: None,
         });
+        match r {
+            Ok(_) => {},
+            Err(e) => error!("Error: {}",e)
+        }
     }
     fn loop_x_times(&self,times: usize) {
         let action_type = DWCActionType::LoopXTimes;
-        let _ = self.tx.send(InternalIPC {
+        let r = self.tx.send(InternalIPC {
             action: InternalIPCType::DWCAction(action_type.clone()),
             dwc: Some(DirectWorkerCommunication {
                 job_id: self.job_id.clone().unwrap(),
@@ -88,10 +101,14 @@ impl TrackManager for PlayerObject {
             job_id: self.job_id.clone().unwrap(),
             queue_job_request: None,
         });
+        match r {
+            Ok(_) => {},
+            Err(e) => error!("Error: {}",e)
+        }
     }
     fn seek_to_position(&self,position: Duration) {
         let action_type = DWCActionType::SeekToPosition;
-        let _ = self.tx.send(InternalIPC {
+        let r = self.tx.send(InternalIPC {
             action: InternalIPCType::DWCAction(action_type.clone()),
             dwc: Some(DirectWorkerCommunication {
                 job_id: self.job_id.clone().unwrap(),
@@ -107,10 +124,14 @@ impl TrackManager for PlayerObject {
             job_id: self.job_id.clone().unwrap(),
             queue_job_request: None,
         });
+        match r {
+            Ok(_) => {},
+            Err(e) => error!("Error: {}",e)
+        }
     }
     fn resume_playback(&self) {
         let action_type = DWCActionType::ResumePlayback;
-        let _ = self.tx.send(InternalIPC {
+        let r = self.tx.send(InternalIPC {
             action: InternalIPCType::DWCAction(action_type.clone()),
             dwc: Some(DirectWorkerCommunication {
                 job_id: self.job_id.clone().unwrap(),
@@ -126,10 +147,14 @@ impl TrackManager for PlayerObject {
             job_id: self.job_id.clone().unwrap(),
             queue_job_request: None,
         });
+        match r {
+            Ok(_) => {},
+            Err(e) => error!("Error: {}",e)
+        }
     }
     fn pause_playback(&self) {
         let action_type = DWCActionType::PausePlayback;
-        let _ = self.tx.send(InternalIPC {
+        let r = self.tx.send(InternalIPC {
             action: InternalIPCType::DWCAction(action_type.clone()),
             dwc: Some(DirectWorkerCommunication {
                 job_id: self.job_id.clone().unwrap(),
@@ -145,5 +170,9 @@ impl TrackManager for PlayerObject {
             job_id: self.job_id.clone().unwrap(),
             queue_job_request: None,
         });
+        match r {
+            Ok(_) => {},
+            Err(e) => error!("Error: {}",e)
+        }
     }
 }

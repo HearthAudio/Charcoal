@@ -1,4 +1,5 @@
 use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
+use log::error;
 use crate::{PlayerObject, InternalIPC, InternalIPCType};
 
 trait Player {
@@ -8,7 +9,7 @@ trait Player {
 
 impl Player for PlayerObject {
     fn play_from_http(&self,url: String) {
-        let _ = self.tx.send(InternalIPC {
+        let r = self.tx.send(InternalIPC {
             action: InternalIPCType::DWCAction(DWCActionType::PlayDirectLink),
             dwc: Some(DirectWorkerCommunication {
                 job_id: self.job_id.clone().unwrap(),
@@ -24,9 +25,13 @@ impl Player for PlayerObject {
             job_id: self.job_id.clone().unwrap(),
             queue_job_request: None,
         });
+        match r {
+            Ok(_) => {},
+            Err(e) => error!("Error: {}",e)
+        }
     }
     fn play_from_youtube(&self,url: String) {
-        let _ = self.tx.send(InternalIPC {
+        let r = self.tx.send(InternalIPC {
             action: InternalIPCType::DWCAction(DWCActionType::PlayFromYoutube),
             dwc: Some(DirectWorkerCommunication {
                 job_id: self.job_id.clone().unwrap(),
@@ -42,5 +47,9 @@ impl Player for PlayerObject {
             job_id: self.job_id.clone().unwrap(),
             queue_job_request: None,
         });
+        match r {
+            Ok(_) => {},
+            Err(e) => error!("Error: {}",e)
+        }
     }
 }
