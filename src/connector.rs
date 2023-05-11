@@ -15,7 +15,6 @@ use openssl;
 use snafu::Whatever;
 use tokio::sync::broadcast::{Receiver, Sender};
 use crate::{InternalIPC, InternalIPCType, StandardActionType};
-use crate::actions::awaiters::AwaitAction;
 use self::kafka::client::{FetchOffset, KafkaClient, SecurityConfig};
 use self::openssl::ssl::{SslConnector, SslFiletype, SslMethod, SslVerifyMode};
 
@@ -126,7 +125,6 @@ pub fn initialize_consume(brokers: Vec<String>, mut producer: Producer, tx: Send
         .with_topic(String::from("communication"))
         .create()
         .unwrap();
-    let mut await_hooks: HashMap<String,AwaitAction> = HashMap::new();
 
     loop {
         let mss = consumer.poll().unwrap();
@@ -156,9 +154,6 @@ pub fn initialize_consume(brokers: Vec<String>, mut producer: Producer, tx: Send
         match res {
             Ok(msg) => {
                 let request_id = nanoid!();
-                if msg.await_hook.is_some() {
-                    await_hooks.insert(request_id,msg.await_hook.unwrap());
-                }
                 match msg.action {
                     InternalIPCType::DWCAction(..) => {
                         send_message(&Message {

@@ -1,15 +1,14 @@
 use hearth_interconnect::messages::JobRequest;
 use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
 use crate::{InternalIPC, InternalIPCType, PlayerObject};
-use crate::actions::awaiters::AwaitAction;
 
 trait ChannelManager {
-    fn join_channel(&self,guild_id: String,voice_channel_id: String) -> AwaitAction;
-    fn exit_channel(&self) -> AwaitAction;
+    fn join_channel(&self,guild_id: String,voice_channel_id: String);
+    fn exit_channel(&self);
 }
 
 impl ChannelManager for PlayerObject {
-    fn join_channel(&self,guild_id: String,voice_channel_id: String) -> AwaitAction {
+    fn join_channel(&self,guild_id: String,voice_channel_id: String) {
         let _ = self.tx.send(InternalIPC {
             action: InternalIPCType::DWCAction(DWCActionType::PlayDirectLink),
             dwc: None,
@@ -20,11 +19,8 @@ impl ChannelManager for PlayerObject {
                 voice_channel_id,
             })
         });
-        AwaitAction {
-            action_completed: false
-        }
     }
-    fn exit_channel(&self) -> AwaitAction {
+    fn exit_channel(&self) {
         let _ = self.tx.send(InternalIPC {
             action: InternalIPCType::DWCAction(DWCActionType::LeaveChannel),
             dwc: Some(DirectWorkerCommunication {
@@ -40,10 +36,6 @@ impl ChannelManager for PlayerObject {
             worker_id: self.worker_id.clone().unwrap(),
             job_id: self.job_id.clone().unwrap(),
             queue_job_request: None,
-            await_hook: None,
         });
-        AwaitAction {
-            action_completed: false
-        }
     }
 }
