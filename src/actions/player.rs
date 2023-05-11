@@ -24,6 +24,8 @@ impl Player for PlayerObject {
             worker_id: self.worker_id.clone().unwrap(),
             job_id: self.job_id.clone().unwrap(),
             queue_job_request: None,
+            job_result: None,
+            request_id: None,
         });
         match r {
             Ok(_) => {},
@@ -46,6 +48,8 @@ impl Player for PlayerObject {
             worker_id: self.worker_id.clone().unwrap(),
             job_id: self.job_id.clone().unwrap(),
             queue_job_request: None,
+            job_result: None,
+            request_id: None,
         });
         match r {
             Ok(_) => {},

@@ -27,7 +27,9 @@ pub struct InternalIPC {
     dwc: Option<DirectWorkerCommunication>,
     worker_id: String,
     job_id: String,
-    queue_job_request: Option<JobRequest>
+    queue_job_request: Option<JobRequest>,
+    job_result: Option<&'static mut PlayerObject>,
+    request_id: Option<String>
 }
 
 pub struct PlayerObject {
