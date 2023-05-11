@@ -113,12 +113,14 @@ pub fn initialize_producer(client: KafkaClient) -> Producer {
 
 fn parse_message(parsed_message: Message, _producer: &mut Producer) -> Result<(),Whatever> {
     match parsed_message.message_type {
+        MessageType::ErrorReport => {
+            let error_report = parsed_message.error_report.unwrap();
+            error!("{} - Error with Job ID: {} and Request ID: {}",error_report.error,error_report.job_id,error_report.request_id)
+        }
         _ => {}
     }
     Ok(())
 }
-
-
 
 pub fn initialize_consume(brokers: Vec<String>, mut producer: Producer, _tx: Sender<InternalIPC>, mut rx: Receiver<InternalIPC>) {
     let mut consumer = Consumer::from_client(initialize_client(&brokers))

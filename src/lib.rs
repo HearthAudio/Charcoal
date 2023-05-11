@@ -56,7 +56,10 @@ impl Charcoal {
 
 pub fn init_charcoal() -> Charcoal {
     let (tx, rx) : (Sender<InternalIPC>,Receiver<InternalIPC>) = broadcast::channel(16);
-    init_connector("".to_string(),tx.clone(),rx);
+    let con_tx = tx.clone();
+    tokio::task::spawn(async move {
+        init_connector("".to_string(),con_tx,rx);
+    });
     return Charcoal {
         tx: tx.clone(),
         rx: tx.subscribe()
