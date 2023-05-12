@@ -1,3 +1,5 @@
+use std::ops::Deref;
+use std::sync::Arc;
 use std::thread::sleep;
 use std::time::Duration;
 use async_trait::async_trait;
@@ -7,9 +9,7 @@ use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCAc
 use kafka::producer::Producer;
 use log::error;
 use nanoid::nanoid;
-use tokio::sync::broadcast;
-use tokio::sync::broadcast::{Receiver, Sender};
-use crate::connector::{init_connector, initialize_client, initialize_producer};
+use crate::connector::{initialize_client, initialize_producer};
 use crate::logger::setup_logger;
 
 mod connector;
@@ -52,7 +52,7 @@ pub struct InternalIPC {
 }
 
 pub struct PlayerObject {
-    producer: Producer,
+    producer: &'static Producer,
     worker_id: Option<String>,
     job_id:  Option<String>,
     guild_id:  Option<String>,
@@ -60,10 +60,9 @@ pub struct PlayerObject {
 }
 
 impl PlayerObject {
-    async fn new(broker: String) -> Self {
-        let producer = init_charcoal(broker).await;
+    pub async fn new(producer: &'static Producer) -> Self {
         PlayerObject {
-            producer,
+            producer: producer,
             worker_id: None,
             job_id: None,
             guild_id: None,
@@ -71,6 +70,7 @@ impl PlayerObject {
         }
     }
 }
+
 pub async fn init_charcoal(broker: String) -> Producer  {
     let brokers = vec![broker];
     let producer : Producer = initialize_producer(initialize_client(&brokers));

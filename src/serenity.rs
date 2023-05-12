@@ -1,8 +1,8 @@
 //! Provides ClientBuilder extension for super easy use with serenity
+use std::sync::Arc;
 use kafka::producer::Producer;
 use serenity::prelude::{TypeMap, TypeMapKey};
-use tokio::sync::RwLockReadGuard;
-use crate::{Charcoal, init_charcoal};
+use crate::{init_charcoal};
 // pub use serenity::client::ClientBuilder;
 use serenity::*;
 pub use serenity::client::ClientBuilder;
