@@ -21,8 +21,8 @@ impl TrackManager for PlayerObject {
     async fn set_playback_volume(&self,playback_volume: f32) {
         let action_type = DWCActionType::SetPlaybackVolume;
         //
-        let mut producer = self.producer.lock().await;
-        send_direct_worker_communication(&mut producer,DirectWorkerCommunication {
+        let mut charcoal = self.charcoal.lock().await;
+        send_direct_worker_communication(&mut charcoal.producer,DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
             action_type: action_type.clone(),
             play_audio_url: None,
@@ -36,8 +36,8 @@ impl TrackManager for PlayerObject {
     async fn force_stop_loop(&self) {
         let action_type = DWCActionType::ForceStopLoop;
         //
-        let mut producer = self.producer.lock().await;
-        send_direct_worker_communication(&mut producer,DirectWorkerCommunication {
+        let mut charcoal = self.charcoal.lock().await;
+        send_direct_worker_communication(&mut charcoal.producer,DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
             action_type: action_type.clone(),
             play_audio_url: None,
@@ -51,8 +51,8 @@ impl TrackManager for PlayerObject {
     async fn loop_indefinitely(&self) {
         let action_type = DWCActionType::LoopForever;
         //
-        let mut producer = self.producer.lock().await;
-        send_direct_worker_communication(&mut producer,DirectWorkerCommunication {
+        let mut charcoal = self.charcoal.lock().await;
+        send_direct_worker_communication(&mut charcoal.producer,DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
             action_type: action_type.clone(),
             play_audio_url: None,
@@ -66,8 +66,8 @@ impl TrackManager for PlayerObject {
     async fn loop_x_times(&self,times: usize) {
         let action_type = DWCActionType::LoopXTimes;
         //
-        let mut producer = self.producer.lock().await;
-        send_direct_worker_communication(&mut producer,DirectWorkerCommunication {
+        let mut charcoal = self.charcoal.lock().await;
+        send_direct_worker_communication(&mut charcoal.producer,DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
             action_type: action_type.clone(),
             play_audio_url: None,
@@ -81,8 +81,8 @@ impl TrackManager for PlayerObject {
     async fn seek_to_position(&self,position: Duration) {
         let action_type = DWCActionType::SeekToPosition;
         //
-        let mut producer = self.producer.lock().await;
-        send_direct_worker_communication(&mut producer,DirectWorkerCommunication {
+        let mut charcoal = self.charcoal.lock().await;
+        send_direct_worker_communication(&mut charcoal.producer,DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
             action_type: action_type.clone(),
             play_audio_url: None,
@@ -96,8 +96,8 @@ impl TrackManager for PlayerObject {
     async fn resume_playback(&self) {
         let action_type = DWCActionType::ResumePlayback;
         //
-        let mut producer = self.producer.lock().await;
-        send_direct_worker_communication(&mut producer,DirectWorkerCommunication {
+        let mut charcoal = self.charcoal.lock().await;
+        send_direct_worker_communication(&mut charcoal.producer,DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
             action_type: action_type.clone(),
             play_audio_url: None,
@@ -111,8 +111,8 @@ impl TrackManager for PlayerObject {
     async fn pause_playback(&self) {
         let action_type = DWCActionType::PausePlayback;
         //
-        let mut producer = self.producer.lock().await;
-        send_direct_worker_communication(&mut producer,DirectWorkerCommunication {
+        let mut charcoal = self.charcoal.lock().await;
+        send_direct_worker_communication(&mut charcoal.producer,DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
             action_type: action_type.clone(),
             play_audio_url: None,

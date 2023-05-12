@@ -17,8 +17,7 @@ pub trait ChannelManager {
 #[async_trait]
 impl ChannelManager for PlayerObject {
     async fn join_channel(&mut self, guild_id: String, voice_channel_id: String) {
-        let mut producer = self.producer.lock().await;
-        let mut consumer = self.consumer.lock().await;
+        let mut charcoal = self.charcoal.lock().await;
         send_message(&Message {
             message_type: MessageType::DirectWorkerCommunication,
             analytics: None,
@@ -33,11 +32,11 @@ impl ChannelManager for PlayerObject {
             external_queue_job_response: None,
             job_event: None,
             error_report: None,
-        },"communication",&mut producer);
+        },"communication",&mut charcoal.producer);
         //
 
         loop {
-            let mss = consumer.poll().unwrap();
+            let mss = charcoal.consumer.poll().unwrap();
             if mss.is_empty() {
                 debug!("No messages available right now.");
             }
@@ -65,22 +64,22 @@ impl ChannelManager for PlayerObject {
                         Err(e) => error!("{} - Failed to parse message",e),
                     }
                 }
-                let _ = consumer.consume_messageset(ms);
+                let _ = charcoal.consumer.consume_messageset(ms);
             }
-            consumer.commit_consumed().unwrap();
+            charcoal.consumer.commit_consumed().unwrap();
         }
     }
     async fn exit_channel(&self) {
-        let mut producer = self.producer.lock().await;
-        send_direct_worker_communication(&mut producer,DirectWorkerCommunication {
-            job_id: self.job_id.unwrap(),
+        let mut charcoal = self.charcoal.lock().await;
+        send_direct_worker_communication(&mut charcoal.producer,DirectWorkerCommunication {
+            job_id: self.job_id.clone().unwrap(),
             action_type: DWCActionType::LeaveChannel,
             play_audio_url: None,
-            guild_id: Some(self.guild_id.unwrap()),
+            guild_id: Some(self.guild_id.clone().unwrap()),
             request_id: None,
             new_volume: None,
             seek_position: None,
             loop_times: None,
-        });
+        },self).await;
     }
 }

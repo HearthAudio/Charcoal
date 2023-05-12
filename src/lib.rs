@@ -55,8 +55,7 @@ pub struct InternalIPC {
 }
 
 pub struct PlayerObject {
-    producer: Arc<Mutex<Producer>>,
-    consumer: Arc<Mutex<Consumer>>,
+    charcoal: Arc<Mutex<Charcoal>>,
     worker_id: Option<String>,
     job_id:  Option<String>,
     guild_id:  Option<String>,
@@ -64,10 +63,9 @@ pub struct PlayerObject {
 }
 
 impl PlayerObject {
-    pub async fn new(producer: Arc<Mutex<Producer>>,consumer: Arc<Mutex<Consumer>>) -> Self {
+    pub async fn new(charcoal: Arc<Mutex<Charcoal>>) -> Self {
         PlayerObject {
-            producer,
-            consumer,
+            charcoal: charcoal,
             worker_id: None,
             job_id: None,
             guild_id: None,
@@ -76,12 +74,12 @@ impl PlayerObject {
     }
 }
 
-struct Charcoal {
-    producer: Arc<Mutex<Producer>>,
-    consumer: Arc<Mutex<Consumer>>,
+pub struct Charcoal {
+    producer: Producer,
+    consumer: Consumer,
 }
 
-pub async fn init_charcoal(broker: String) -> Charcoal  {
+pub async fn init_charcoal(broker: String) -> Arc<Mutex<Charcoal>>  {
     let brokers = vec![broker];
     //TODO: Sort this mess out
     let producer : Producer = initialize_producer(initialize_client(&brokers));
@@ -90,8 +88,8 @@ pub async fn init_charcoal(broker: String) -> Charcoal  {
     .with_topic(String::from("communication"))
     .create()
     .unwrap();
-    return Charcoal {
-        producer: Arc::new(Mutex::new(producer)),
-        consumer: Arc::new(Mutex::new(consumer))
-    };
+    return Arc::new(Mutex::new(Charcoal {
+        producer,
+        consumer
+    }));
 }
