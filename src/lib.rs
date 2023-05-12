@@ -2,10 +2,12 @@ use std::ops::Deref;
 use std::sync::{Arc};
 use std::thread::sleep;
 use std::time::Duration;
+use ::serenity::Client;
 use async_trait::async_trait;
 use futures::SinkExt;
 use hearth_interconnect::messages::JobRequest;
 use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
+use kafka::consumer::Consumer;
 use kafka::producer::Producer;
 use log::error;
 use nanoid::nanoid;
@@ -54,6 +56,7 @@ pub struct InternalIPC {
 
 pub struct PlayerObject {
     producer: Arc<Mutex<Producer>>,
+    consumer: Arc<Mutex<Consumer>>,
     worker_id: Option<String>,
     job_id:  Option<String>,
     guild_id:  Option<String>,
@@ -61,9 +64,10 @@ pub struct PlayerObject {
 }
 
 impl PlayerObject {
-    pub async fn new(producer: Arc<Mutex<Producer>>) -> Self {
+    pub async fn new(producer: Arc<Mutex<Producer>>,consumer: Arc<Mutex<Consumer>>) -> Self {
         PlayerObject {
             producer,
+            consumer,
             worker_id: None,
             job_id: None,
             guild_id: None,
@@ -72,8 +76,22 @@ impl PlayerObject {
     }
 }
 
-pub async fn init_charcoal(broker: String) -> Producer  {
+struct Charcoal {
+    producer: Arc<Mutex<Producer>>,
+    consumer: Arc<Mutex<Consumer>>,
+}
+
+pub async fn init_charcoal(broker: String) -> Charcoal  {
     let brokers = vec![broker];
+    //TODO: Sort this mess out
     let producer : Producer = initialize_producer(initialize_client(&brokers));
-    return producer;
+    let mut consumer = Consumer::from_client(initialize_client(&brokers))
+
+    .with_topic(String::from("communication"))
+    .create()
+    .unwrap();
+    return Charcoal {
+        producer: Arc::new(Mutex::new(producer)),
+        consumer: Arc::new(Mutex::new(consumer))
+    };
 }

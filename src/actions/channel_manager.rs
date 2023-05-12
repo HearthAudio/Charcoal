@@ -1,83 +1,86 @@
 use std::sync::Arc;
-use hearth_interconnect::messages::JobRequest;
+use hearth_interconnect::messages::{JobRequest, Message, MessageType};
 use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
-use log::error;
+use log::{debug, error};
 use nanoid::nanoid;
 use crate::{InfrastructureType, InternalIPC, InternalIPCType, PlayerObject, StandardActionType};
 use async_trait::async_trait;
+use crate::actions::helpers::send_direct_worker_communication;
+use crate::connector::send_message;
 
 #[async_trait]
 pub trait ChannelManager {
     async fn join_channel(&mut self,guild_id: String,voice_channel_id: String);
-    fn exit_channel(&self);
+    async fn exit_channel(&self);
 }
 
 #[async_trait]
 impl ChannelManager for PlayerObject {
     async fn join_channel(&mut self, guild_id: String, voice_channel_id: String) {
-        let rid = nanoid!();
-        let r = self.tx.send(InternalIPC {
-            action: InternalIPCType::StandardAction(StandardActionType::JoinChannel),
-            dwc: None,
-            worker_id: None,
-            job_id: None,
+        let mut producer = self.producer.lock().await;
+        let mut consumer = self.consumer.lock().await;
+        send_message(&Message {
+            message_type: MessageType::DirectWorkerCommunication,
+            analytics: None,
             queue_job_request: Some(JobRequest {
                 guild_id,
                 voice_channel_id,
             }),
-            request_id: Some(rid.clone()),
-            job_result: None
-        });
-        match r {
-            Ok(_) => {},
-            Err(e) => error!("Error: {}",e)
-        }
+            queue_job_internal: None,
+            request_id: nanoid!(),
+            worker_id: None,
+            direct_worker_communication: None,
+            external_queue_job_response: None,
+            job_event: None,
+            error_report: None,
+        },"communication",&mut producer);
+        //
+
         loop {
-            let res = self.rx.recv().await;
-            match res {
-                Ok(msg) => {
-                    println!("{:?}",msg);
-                    match msg.action {
-                        InternalIPCType::Infrastructure(InfrastructureType::JoinChannelResult) => {
-                            if msg.request_id.unwrap() == rid {
-                                println!("Got RESULT!");
-                                println!("{},{}",msg.job_id.as_ref().unwrap(),msg.worker_id.as_ref().unwrap());
-                                self.job_id = msg.job_id;
-                                self.worker_id = msg.worker_id;
-                                println!("{},{}",self.job_id.as_ref().unwrap(),self.worker_id.as_ref().unwrap());
-                                break;
+            let mss = consumer.poll().unwrap();
+            if mss.is_empty() {
+                debug!("No messages available right now.");
+            }
+
+            for ms in mss.iter() {
+                for m in ms.messages() {
+                    let parsed_message : Result<Message,serde_json::Error> = serde_json::from_slice(&m.value);
+                    match parsed_message {
+                        Ok(message) => {
+                            match message.message_type {
+                                MessageType::ErrorReport => {
+                                    let error_report = message.error_report.unwrap();
+                                    error!("{} - Error with Job ID: {} and Request ID: {}",error_report.error,error_report.job_id,error_report.request_id)
+                                },
+                                MessageType::ExternalQueueJobResponse => {
+                                    let res = message.external_queue_job_response.unwrap();
+                                    self.worker_id = Some(res.worker_id);
+                                    self.job_id = Some(res.job_id);
+                                    break;
+
+                                },
+                                _ => {}
                             }
                         },
-                        _ => {}
+                        Err(e) => error!("{} - Failed to parse message",e),
                     }
-                },
-                Err(e) => error!("Error: {}",e)
+                }
+                let _ = consumer.consume_messageset(ms);
             }
-            println!("LOOP")
+            consumer.commit_consumed().unwrap();
         }
     }
-    fn exit_channel(&self) {
-        let r = self.tx.send(InternalIPC {
-            action: InternalIPCType::DWCAction(DWCActionType::LeaveChannel),
-            dwc: Some(DirectWorkerCommunication {
-                job_id: self.job_id.clone().unwrap(),
-                action_type: DWCActionType::LeaveChannel,
-                play_audio_url: None,
-                guild_id: Some(self.guild_id.clone().unwrap()),
-                request_id: None,
-                new_volume: None,
-                seek_position: None,
-                loop_times: None,
-            }),
-            worker_id:Some( self.worker_id.clone().unwrap()),
-            job_id: Some(self.job_id.clone().unwrap()),
-            queue_job_request: None,
-            job_result: None,
+    async fn exit_channel(&self) {
+        let mut producer = self.producer.lock().await;
+        send_direct_worker_communication(&mut producer,DirectWorkerCommunication {
+            job_id: self.job_id.unwrap(),
+            action_type: DWCActionType::LeaveChannel,
+            play_audio_url: None,
+            guild_id: Some(self.guild_id.unwrap()),
             request_id: None,
+            new_volume: None,
+            seek_position: None,
+            loop_times: None,
         });
-        match r {
-            Ok(_) => {},
-            Err(e) => error!("Error: {}",e)
-        }
     }
 }
