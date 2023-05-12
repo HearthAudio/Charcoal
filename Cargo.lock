@@ -137,6 +137,7 @@ dependencies = [
  "serde_json",
  "serenity",
  "snafu",
+ "tokio",
 ]
 
 [[package]]

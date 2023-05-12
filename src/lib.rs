@@ -1,5 +1,5 @@
 use std::ops::Deref;
-use std::sync::Arc;
+use std::sync::{Arc};
 use std::thread::sleep;
 use std::time::Duration;
 use async_trait::async_trait;
@@ -9,6 +9,7 @@ use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCAc
 use kafka::producer::Producer;
 use log::error;
 use nanoid::nanoid;
+use tokio::sync::Mutex;
 use crate::connector::{initialize_client, initialize_producer};
 use crate::logger::setup_logger;
 
@@ -52,7 +53,7 @@ pub struct InternalIPC {
 }
 
 pub struct PlayerObject {
-    producer: &'static Producer,
+    producer: Arc<Mutex<Producer>>,
     worker_id: Option<String>,
     job_id:  Option<String>,
     guild_id:  Option<String>,
@@ -60,9 +61,9 @@ pub struct PlayerObject {
 }
 
 impl PlayerObject {
-    pub async fn new(producer: &'static Producer) -> Self {
+    pub async fn new(producer: Arc<Mutex<Producer>>) -> Self {
         PlayerObject {
-            producer: producer,
+            producer,
             worker_id: None,
             job_id: None,
             guild_id: None,
