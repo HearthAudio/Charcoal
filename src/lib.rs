@@ -1,9 +1,15 @@
-use std::sync::Arc;
+use std::thread::sleep;
+use std::time::Duration;
+use async_trait::async_trait;
+use futures::SinkExt;
 use hearth_interconnect::messages::JobRequest;
 use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
+use kafka::producer::Producer;
+use log::error;
+use nanoid::nanoid;
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::{Receiver, Sender};
-use crate::connector::init_connector;
+use crate::connector::{init_connector, initialize_client, initialize_producer};
 use crate::logger::setup_logger;
 
 mod connector;
@@ -46,24 +52,18 @@ pub struct InternalIPC {
 }
 
 pub struct PlayerObject {
-    tx: Sender<InternalIPC>,
-    rx: &'static Receiver<InternalIPC>,
+    producer: Producer,
     worker_id: Option<String>,
     job_id:  Option<String>,
     guild_id:  Option<String>,
     channel_id:  Option<String>
 }
 
-pub struct Charcoal {
-    tx: Sender<InternalIPC>,
-    rx: &'static Receiver<InternalIPC>
-}
-
-impl Charcoal {
-    pub fn new_player(&self) -> PlayerObject {
+impl PlayerObject {
+    async fn new(broker: String) -> Self {
+        let producer = init_charcoal(broker).await;
         PlayerObject {
-            tx: self.tx.clone(),
-            rx: self.rx,
+            producer,
             worker_id: None,
             job_id: None,
             guild_id: None,
@@ -71,18 +71,8 @@ impl Charcoal {
         }
     }
 }
-
-pub fn init_charcoal(broker: String) -> Charcoal {
-    let (tx, rx) : (Sender<InternalIPC>,Receiver<InternalIPC>) = broadcast::channel(16);
-    let con_tx = tx.clone();
-    let p_rx = tx.subscribe();
-    let p_rx_x = &'static p_rx;
-    setup_logger().expect("Failed to Init Logger - Charcoal");
-    tokio::task::spawn(async move {
-        init_connector(broker,con_tx,rx);
-    });
-    return Charcoal {
-        tx: tx.clone(),
-        rx: p_rx_x
-    }
+pub async fn init_charcoal(broker: String) -> Producer  {
+    let brokers = vec![broker];
+    let producer : Producer = initialize_producer(initialize_client(&brokers));
+    return producer;
 }
