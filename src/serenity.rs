@@ -1,5 +1,6 @@
 //! Provides ClientBuilder extension for super easy use with serenity
 use std::sync::{Arc};
+use futures::executor;
 use kafka::producer::Producer;
 use serenity::prelude::{TypeMap, TypeMapKey};
 use crate::{Charcoal, init_charcoal};
@@ -14,16 +15,16 @@ impl TypeMapKey for CharcoalKey {
     type Value = Arc<Mutex<Charcoal>>;
 }
 
-#[async_trait]
+
 pub trait SerenityInit {
     #[must_use]
-    async fn register_charcoal(self,broker: String) -> Self;
+    fn register_charcoal(self,broker: String) -> Self;
 }
 
-#[async_trait]
 impl SerenityInit for ClientBuilder {
-    async fn register_charcoal(self,broker: String) -> Self {
-        self.type_map_insert::<CharcoalKey>(init_charcoal(broker).await)
+    fn register_charcoal(self,broker: String) -> Self {
+        let c = init_charcoal(broker);
+        self.type_map_insert::<CharcoalKey>(executor::block_on(c))
     }
 }
 

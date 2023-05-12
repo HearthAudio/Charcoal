@@ -1,4 +1,5 @@
 use std::env;
+use std::sync::Arc;
 
 // Import the `Context` to handle commands.
 use serenity::client::Context;
@@ -19,6 +20,7 @@ use serenity::{
     Result as SerenityResult,
 };
 use serenity::prelude::TypeMapKey;
+use tokio::sync::Mutex;
 use charcoal::actions::channel_manager::ChannelManager;
 use charcoal::actions::player::Player;
 use charcoal::PlayerObject;
@@ -39,7 +41,7 @@ struct General;
 pub struct PlayerObjectKey;
 
 impl TypeMapKey for PlayerObjectKey {
-    type Value = PlayerObject;
+    type Value = Arc<Mutex<PlayerObject>>;
 }
 
 #[tokio::main]
@@ -97,7 +99,7 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
     let mut handler = PlayerObject::new(manager.clone()).await;
     handler.join_channel(guild_id.to_string(),connect_to.to_string()).await;
 
-    r.insert::<PlayerObjectKey>(handler);
+    r.insert::<PlayerObjectKey>(Arc::new(Mutex::new(handler)));
 
     Ok(())
 }
@@ -106,9 +108,9 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
 #[only_in(guilds)]
 async fn leave(ctx: &Context, msg: &Message) -> CommandResult {
     let r = ctx.data.read().await;
-    let manager = r.get::<PlayerObjectKey>().unwrap();
+    let manager = r.get::<PlayerObjectKey>().unwrap().lock().await;
 
-    manager.exit_channel();
+    manager.exit_channel().await;
 
     Ok(())
 }
@@ -141,8 +143,8 @@ async fn play(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     println!("GET LOCK");
     let r = ctx.data.read().await;
     println!("GOT LOCK");
-    let manager = r.get::<PlayerObjectKey>().unwrap();
-    manager.play_from_http(url);
+    let mut manager = r.get::<PlayerObjectKey>().unwrap().lock().await;
+    manager.play_from_http(url).await;
     check_msg(msg.channel_id.say(&ctx.http, "Playing song").await);
 
     Ok(())
