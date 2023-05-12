@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use hearth_interconnect::messages::JobRequest;
 use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
 use tokio::sync::broadcast;
@@ -16,19 +17,31 @@ pub enum StandardActionType {
 }
 
 #[derive(Clone,Debug)]
+pub enum InfrastructureType {
+    JoinChannelResult
+}
+
+#[derive(Clone,Debug)]
 pub enum InternalIPCType {
     DWCAction(DWCActionType),
-    StandardAction(StandardActionType)
+    StandardAction(StandardActionType),
+    Infrastructure(InfrastructureType)
+}
+
+#[derive(Clone,Debug)]
+pub struct JobResult {
+    pub job_id: String,
+    pub worker_id: String
 }
 
 #[derive(Clone,Debug)]
 pub struct InternalIPC {
     action: InternalIPCType,
     dwc: Option<DirectWorkerCommunication>,
-    worker_id: String,
-    job_id: String,
+    worker_id: Option<String>,
+    job_id: Option<String>,
     queue_job_request: Option<JobRequest>,
-    job_result: Option<&'static mut PlayerObject>,
+    job_result: Option<JobResult>,
     request_id: Option<String>
 }
 

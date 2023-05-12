@@ -1,31 +1,42 @@
+use std::sync::Arc;
 use hearth_interconnect::messages::JobRequest;
 use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
 use log::error;
 use nanoid::nanoid;
 use crate::{InternalIPC, InternalIPCType, PlayerObject, StandardActionType};
+use async_trait::async_trait;
 
+#[async_trait]
 pub trait ChannelManager {
-    fn join_channel(&mut self,guild_id: String,voice_channel_id: String);
+    async fn join_channel(&mut self,guild_id: String,voice_channel_id: String);
     fn exit_channel(&self);
-    fn joined_channel_result(&mut self,job_id: String,worker_id: String);
 }
 
+#[async_trait]
 impl ChannelManager for PlayerObject {
-    fn join_channel(&mut self, guild_id: String, voice_channel_id: String) {
+    async fn join_channel(&mut self, guild_id: String, voice_channel_id: String) {
         let r = self.tx.send(InternalIPC {
             action: InternalIPCType::StandardAction(StandardActionType::JoinChannel),
             dwc: None,
-            worker_id: "".to_string(),
-            job_id: "".to_string(),
+            worker_id: None,
+            job_id: None,
             queue_job_request: Some(JobRequest {
                 guild_id,
                 voice_channel_id,
             }),
             request_id: Some(nanoid!()),
-            job_result: Some(&mut self)
+            job_result: None
         });
         match r {
             Ok(_) => {},
+            Err(e) => error!("Error: {}",e)
+        }
+        let res = self.rx.recv().await;
+        match res {
+            Ok(msg) => {
+                self.job_id = msg.job_id;
+                self.worker_id = msg.worker_id;
+            },
             Err(e) => error!("Error: {}",e)
         }
     }
@@ -42,8 +53,8 @@ impl ChannelManager for PlayerObject {
                 seek_position: None,
                 loop_times: None,
             }),
-            worker_id: self.worker_id.clone().unwrap(),
-            job_id: self.job_id.clone().unwrap(),
+            worker_id:Some( self.worker_id.clone().unwrap()),
+            job_id: Some(self.job_id.clone().unwrap()),
             queue_job_request: None,
             job_result: None,
             request_id: None,
@@ -52,9 +63,5 @@ impl ChannelManager for PlayerObject {
             Ok(_) => {},
             Err(e) => error!("Error: {}",e)
         }
-    }
-    fn joined_channel_result(&mut self,job_id: String,worker_id: String) {
-        self.job_id = Some(job_id);
-        self.worker_id = Some(worker_id);
     }
 }

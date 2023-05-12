@@ -15,7 +15,7 @@ use nanoid::nanoid;
 use openssl;
 use snafu::Whatever;
 use tokio::sync::broadcast::{Receiver, Sender};
-use crate::{InternalIPC, InternalIPCType, PlayerObject, StandardActionType};
+use crate::{InfrastructureType, InternalIPC, InternalIPCType, PlayerObject, StandardActionType};
 use crate::actions::channel_manager::ChannelManager;
 use self::kafka::client::{FetchOffset, KafkaClient, SecurityConfig};
 use self::openssl::ssl::{SslConnector, SslFiletype, SslMethod, SslVerifyMode};
@@ -113,7 +113,7 @@ pub fn initialize_producer(client: KafkaClient) -> Producer {
     return producer;
 }
 
-fn parse_message(parsed_message: Message, _producer: &mut Producer,hash: &HashMap<String, &mut PlayerObject>) -> Result<(),Whatever> {
+fn parse_message(parsed_message: Message, _producer: &mut Producer,tx: &Sender<InternalIPC>) -> Result<(),Whatever> {
     match parsed_message.message_type {
         MessageType::ErrorReport => {
             let error_report = parsed_message.error_report.unwrap();
@@ -121,21 +121,29 @@ fn parse_message(parsed_message: Message, _producer: &mut Producer,hash: &HashMa
         },
         MessageType::ExternalQueueJobResponse => {
             let res = parsed_message.external_queue_job_response.unwrap();
-            let mut player = *hash.get(&parsed_message.request_id).unwrap();
-            player.joined_channel_result(res.job_id, res.worker_id);
+            // let mut player = *hash.get(&parsed_message.request_id).unwrap();
+            // player.joined_channel_result(res.job_id, res.worker_id);
+            tx.send(InternalIPC {
+                action: InternalIPCType::Infrastructure(InfrastructureType::JoinChannelResult),
+                dwc: None,
+                worker_id: None,
+                job_id: None,
+                queue_job_request: None,
+                job_result: None,
+                request_id: Some(parsed_message.request_id),
+            }).unwrap();
+
         }
         _ => {}
     }
     Ok(())
 }
 
-pub fn initialize_consume(brokers: Vec<String>, mut producer: Producer, _tx: Sender<InternalIPC>, mut rx: Receiver<InternalIPC>) {
+pub fn initialize_consume(brokers: Vec<String>, mut producer: Producer, tx: Sender<InternalIPC>, mut rx: Receiver<InternalIPC>) {
     let mut consumer = Consumer::from_client(initialize_client(&brokers))
         .with_topic(String::from("communication"))
         .create()
         .unwrap();
-
-    let mut hooks: HashMap<String, &mut PlayerObject> = HashMap::new();
 
     loop {
         let mss = consumer.poll().unwrap();
@@ -148,7 +156,7 @@ pub fn initialize_consume(brokers: Vec<String>, mut producer: Producer, _tx: Sen
                 let parsed_message : Result<Message,serde_json::Error> = serde_json::from_slice(&m.value);
                 match parsed_message {
                     Ok(message) => {
-                        let parse = parse_message(message,&mut producer,&hooks);
+                        let parse = parse_message(message,&mut producer,&tx);
                         match parse {
                             Ok(_) => {},
                             Err(e) => error!("Failed to parse message with error: {}",e)
@@ -171,14 +179,13 @@ pub fn initialize_consume(brokers: Vec<String>, mut producer: Producer, _tx: Sen
                             analytics: None,
                             queue_job_request: msg.queue_job_request,
                             queue_job_internal: None,
-                            request_id: msg.request_id.clone(),
+                            request_id: msg.request_id.unwrap().clone(),
                             worker_id: None,
                             direct_worker_communication: None,
                             external_queue_job_response: None,
                             job_event: None,
                             error_report: None,
                         },"communication",&mut producer);
-                        hooks.insert(msg.request_id,msg.job_result.unwrap());
                     }
                     InternalIPCType::DWCAction(..) => {
                         send_message(&Message {
@@ -186,7 +193,7 @@ pub fn initialize_consume(brokers: Vec<String>, mut producer: Producer, _tx: Sen
                             analytics: None,
                             queue_job_request: None,
                             queue_job_internal: None,
-                            request_id: msg.request_id.clone(),
+                            request_id: nanoid!(),
                             worker_id: None,
                             direct_worker_communication: msg.dwc,
                             external_queue_job_response: None,
@@ -194,6 +201,7 @@ pub fn initialize_consume(brokers: Vec<String>, mut producer: Producer, _tx: Sen
                             error_report: None,
                         },"communication",&mut producer)
                     },
+                    _ => {}
                 }
             },
             Err(_e) => {}
