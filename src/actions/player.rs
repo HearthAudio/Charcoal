@@ -13,7 +13,9 @@ pub trait Player {
 #[async_trait]
 impl Player for PlayerObject {
     async fn play_from_http(&mut self, url: String) {
+        println!("LOCKING PLAY");
         let mut charcoal = self.charcoal.lock().await;
+        println!("SENDING DWC P");
         send_direct_worker_communication(&mut charcoal.producer,DirectWorkerCommunication {
                 job_id: self.job_id.clone().unwrap(),
                 action_type: DWCActionType::PlayDirectLink,
@@ -23,7 +25,8 @@ impl Player for PlayerObject {
                 new_volume: None,
                 seek_position: None,
                 loop_times: None,
-        },self);
+        },self).await;
+        println!("SENT PLAY!");
     }
     async fn play_from_youtube(&mut self,url: String) {
         let mut charcoal = self.charcoal.lock().await;

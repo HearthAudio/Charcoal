@@ -23,7 +23,7 @@ use serenity::prelude::TypeMapKey;
 use tokio::sync::Mutex;
 use charcoal::actions::channel_manager::ChannelManager;
 use charcoal::actions::player::Player;
-use charcoal::PlayerObject;
+use charcoal::{Charcoal, PlayerObject};
 
 struct Handler;
 
@@ -93,6 +93,7 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
             return Ok(());
         }
     };
+
     let mut r = ctx.data.write().await;
     let manager = r.get::<CharcoalKey>().unwrap();
 
@@ -100,7 +101,7 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
     handler.join_channel(guild_id.to_string(),connect_to.to_string()).await;
 
     r.insert::<PlayerObjectKey>(Arc::new(Mutex::new(handler)));
-
+    println!("OUT OF SCOPE");
     Ok(())
 }
 

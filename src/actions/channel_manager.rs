@@ -17,9 +17,10 @@ pub trait ChannelManager {
 #[async_trait]
 impl ChannelManager for PlayerObject {
     async fn join_channel(&mut self, guild_id: String, voice_channel_id: String) {
+        self.guild_id = Some(guild_id.clone());
         let mut charcoal = self.charcoal.lock().await;
         send_message(&Message {
-            message_type: MessageType::DirectWorkerCommunication,
+            message_type: MessageType::ExternalQueueJob,
             analytics: None,
             queue_job_request: Some(JobRequest {
                 guild_id,
@@ -34,8 +35,8 @@ impl ChannelManager for PlayerObject {
             error_report: None,
         },"communication",&mut charcoal.producer);
         //
-
-        loop {
+        let mut check_result = true;
+        while check_result {
             let mss = charcoal.consumer.poll().unwrap();
             if mss.is_empty() {
                 debug!("No messages available right now.");
@@ -55,7 +56,7 @@ impl ChannelManager for PlayerObject {
                                     let res = message.external_queue_job_response.unwrap();
                                     self.worker_id = Some(res.worker_id);
                                     self.job_id = Some(res.job_id);
-                                    break;
+                                    check_result = false;
 
                                 },
                                 _ => {}
