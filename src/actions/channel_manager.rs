@@ -3,7 +3,7 @@ use hearth_interconnect::messages::JobRequest;
 use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
 use log::error;
 use nanoid::nanoid;
-use crate::{InternalIPC, InternalIPCType, PlayerObject, StandardActionType};
+use crate::{InfrastructureType, InternalIPC, InternalIPCType, PlayerObject, StandardActionType};
 use async_trait::async_trait;
 
 #[async_trait]
@@ -15,6 +15,7 @@ pub trait ChannelManager {
 #[async_trait]
 impl ChannelManager for PlayerObject {
     async fn join_channel(&mut self, guild_id: String, voice_channel_id: String) {
+        let rid = nanoid!();
         let r = self.tx.send(InternalIPC {
             action: InternalIPCType::StandardAction(StandardActionType::JoinChannel),
             dwc: None,
@@ -24,20 +25,35 @@ impl ChannelManager for PlayerObject {
                 guild_id,
                 voice_channel_id,
             }),
-            request_id: Some(nanoid!()),
+            request_id: Some(rid.clone()),
             job_result: None
         });
         match r {
             Ok(_) => {},
             Err(e) => error!("Error: {}",e)
         }
-        let res = self.rx.recv().await;
-        match res {
-            Ok(msg) => {
-                self.job_id = msg.job_id;
-                self.worker_id = msg.worker_id;
-            },
-            Err(e) => error!("Error: {}",e)
+        loop {
+            let res = self.rx.recv().await;
+            match res {
+                Ok(msg) => {
+                    println!("{:?}",msg);
+                    match msg.action {
+                        InternalIPCType::Infrastructure(InfrastructureType::JoinChannelResult) => {
+                            if msg.request_id.unwrap() == rid {
+                                println!("Got RESULT!");
+                                println!("{},{}",msg.job_id.as_ref().unwrap(),msg.worker_id.as_ref().unwrap());
+                                self.job_id = msg.job_id;
+                                self.worker_id = msg.worker_id;
+                                println!("{},{}",self.job_id.as_ref().unwrap(),self.worker_id.as_ref().unwrap());
+                                break;
+                            }
+                        },
+                        _ => {}
+                    }
+                },
+                Err(e) => error!("Error: {}",e)
+            }
+            println!("LOOP")
         }
     }
     fn exit_channel(&self) {

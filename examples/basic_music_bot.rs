@@ -94,8 +94,8 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
     let mut r = ctx.data.write().await;
     let manager = r.get::<CharcoalKey>().unwrap();
 
-    let handler = manager.new_player();
-    handler.join_channel(guild_id.to_string(),connect_to.to_string());
+    let mut handler = manager.new_player();
+    handler.join_channel(guild_id.to_string(),connect_to.to_string()).await;
 
     r.insert::<PlayerObjectKey>(handler);
 

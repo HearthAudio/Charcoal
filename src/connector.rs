@@ -126,12 +126,13 @@ fn parse_message(parsed_message: Message, _producer: &mut Producer,tx: &Sender<I
             tx.send(InternalIPC {
                 action: InternalIPCType::Infrastructure(InfrastructureType::JoinChannelResult),
                 dwc: None,
-                worker_id: None,
-                job_id: None,
+                worker_id: Some(res.worker_id),
+                job_id: Some(res.job_id),
                 queue_job_request: None,
                 job_result: None,
                 request_id: Some(parsed_message.request_id),
             }).unwrap();
+            println!("Sent EQJR");
 
         }
         _ => {}
