@@ -1,11 +1,10 @@
 use std::sync::Arc;
-use hearth_interconnect::messages::{JobRequest, Message, MessageType};
+use hearth_interconnect::messages::{JobRequest, Message};
 use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
 use log::{debug, error};
 use nanoid::nanoid;
 use crate::{InfrastructureType, InternalIPC, InternalIPCType, PlayerObject, StandardActionType};
 use async_trait::async_trait;
-use crate::actions::helpers::send_direct_worker_communication;
 use crate::connector::send_message;
 
 #[async_trait]
@@ -19,21 +18,11 @@ impl ChannelManager for PlayerObject {
     async fn join_channel(&mut self, guild_id: String, voice_channel_id: String) {
         self.guild_id = Some(guild_id.clone());
         let mut charcoal = self.charcoal.lock().await;
-        send_message(&Message {
-            message_type: MessageType::ExternalQueueJob,
-            analytics: None,
-            queue_job_request: Some(JobRequest {
-                guild_id,
-                voice_channel_id,
-            }),
-            queue_job_internal: None,
+        send_message(&Message::ExternalQueueJob(JobRequest {
+            guild_id,
+            voice_channel_id,
             request_id: nanoid!(),
-            worker_id: None,
-            direct_worker_communication: None,
-            external_queue_job_response: None,
-            job_event: None,
-            error_report: None,
-        },"communication",&mut charcoal.producer);
+        }), "communication", &mut charcoal.producer);
         //
         let mut check_result = true;
         while check_result {
@@ -47,17 +36,14 @@ impl ChannelManager for PlayerObject {
                     let parsed_message : Result<Message,serde_json::Error> = serde_json::from_slice(&m.value);
                     match parsed_message {
                         Ok(message) => {
-                            match message.message_type {
-                                MessageType::ErrorReport => {
-                                    let error_report = message.error_report.unwrap();
+                            match message {
+                                Message::ErrorReport(error_report) => {
                                     error!("{} - Error with Job ID: {} and Request ID: {}",error_report.error,error_report.job_id,error_report.request_id)
                                 },
-                                MessageType::ExternalQueueJobResponse => {
-                                    let res = message.external_queue_job_response.unwrap();
+                                Message::ExternalQueueJobResponse(res) => {
                                     self.worker_id = Some(res.worker_id);
                                     self.job_id = Some(res.job_id);
                                     check_result = false;
-
                                 },
                                 _ => {}
                             }
@@ -72,7 +58,7 @@ impl ChannelManager for PlayerObject {
     }
     async fn exit_channel(&self) {
         let mut charcoal = self.charcoal.lock().await;
-        send_direct_worker_communication(&mut charcoal.producer,DirectWorkerCommunication {
+        send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
             action_type: DWCActionType::LeaveChannel,
             play_audio_url: None,
@@ -81,6 +67,6 @@ impl ChannelManager for PlayerObject {
             new_volume: None,
             seek_position: None,
             loop_times: None,
-        },self).await;
+        }),"communication",&mut charcoal.producer);
     }
 }

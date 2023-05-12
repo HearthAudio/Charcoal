@@ -1,10 +1,11 @@
 use std::sync::Arc;
 use std::time::Duration;
 use async_trait::async_trait;
+use hearth_interconnect::messages::Message;
 use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
 use log::error;
 use crate::{InternalIPC, InternalIPCType, PlayerObject};
-use crate::actions::helpers::send_direct_worker_communication;
+use crate::connector::send_message;
 
 #[async_trait]
 pub trait TrackManager {
@@ -19,108 +20,94 @@ pub trait TrackManager {
 #[async_trait]
 impl TrackManager for PlayerObject {
     async fn set_playback_volume(&self,playback_volume: f32) {
-        let action_type = DWCActionType::SetPlaybackVolume;
-        //
         let mut charcoal = self.charcoal.lock().await;
-        send_direct_worker_communication(&mut charcoal.producer,DirectWorkerCommunication {
+        send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
-            action_type: action_type.clone(),
+            action_type: DWCActionType::SetPlaybackVolume,
             play_audio_url: None,
             guild_id: Some(self.guild_id.clone().unwrap()),
             request_id: None,
             new_volume: Some(playback_volume),
             seek_position: None,
             loop_times: None,
-        },self).await;
+        }),"communication",&mut charcoal.producer);
     }
     async fn force_stop_loop(&self) {
-        let action_type = DWCActionType::ForceStopLoop;
-        //
         let mut charcoal = self.charcoal.lock().await;
-        send_direct_worker_communication(&mut charcoal.producer,DirectWorkerCommunication {
+        send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
-            action_type: action_type.clone(),
+            action_type: DWCActionType::ForceStopLoop,
             play_audio_url: None,
             guild_id: Some(self.guild_id.clone().unwrap()),
             request_id: None,
             new_volume: None,
             seek_position: None,
             loop_times: None,
-        },self).await;
+        }),"communication",&mut charcoal.producer);
     }
     async fn loop_indefinitely(&self) {
-        let action_type = DWCActionType::LoopForever;
-        //
         let mut charcoal = self.charcoal.lock().await;
-        send_direct_worker_communication(&mut charcoal.producer,DirectWorkerCommunication {
+        send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
-            action_type: action_type.clone(),
+            action_type: DWCActionType::LoopForever,
             play_audio_url: None,
             guild_id: Some(self.guild_id.clone().unwrap()),
             request_id: None,
             new_volume: None,
             seek_position: None,
             loop_times: None,
-        },self).await;
+        }),"communication",&mut charcoal.producer);
     }
     async fn loop_x_times(&self,times: usize) {
-        let action_type = DWCActionType::LoopXTimes;
-        //
         let mut charcoal = self.charcoal.lock().await;
-        send_direct_worker_communication(&mut charcoal.producer,DirectWorkerCommunication {
+        send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
-            action_type: action_type.clone(),
+            action_type: DWCActionType::LoopXTimes,
             play_audio_url: None,
             guild_id: Some(self.guild_id.clone().unwrap()),
             request_id: None,
             new_volume: None,
             seek_position: None,
             loop_times: Some(times.clone()),
-        },self).await;
+        }),"communication",&mut charcoal.producer);
     }
     async fn seek_to_position(&self,position: Duration) {
-        let action_type = DWCActionType::SeekToPosition;
-        //
         let mut charcoal = self.charcoal.lock().await;
-        send_direct_worker_communication(&mut charcoal.producer,DirectWorkerCommunication {
+        send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
-            action_type: action_type.clone(),
+            action_type: DWCActionType::SeekToPosition,
             play_audio_url: None,
             guild_id: Some(self.guild_id.clone().unwrap()),
             request_id: None,
             new_volume: None,
             seek_position: Some(position.as_millis() as u64),
             loop_times: None,
-        },self).await;
+        }),"communication",&mut charcoal.producer);
     }
     async fn resume_playback(&self) {
-        let action_type = DWCActionType::ResumePlayback;
-        //
         let mut charcoal = self.charcoal.lock().await;
-        send_direct_worker_communication(&mut charcoal.producer,DirectWorkerCommunication {
+        send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
-            action_type: action_type.clone(),
+            action_type: DWCActionType::ResumePlayback,
             play_audio_url: None,
             guild_id: Some(self.guild_id.clone().unwrap()),
             request_id: None,
             new_volume: None,
             seek_position: None,
             loop_times: None,
-        },self).await;
+        }),"communication",&mut charcoal.producer);
     }
     async fn pause_playback(&self) {
-        let action_type = DWCActionType::PausePlayback;
-        //
         let mut charcoal = self.charcoal.lock().await;
-        send_direct_worker_communication(&mut charcoal.producer,DirectWorkerCommunication {
+        send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
-            action_type: action_type.clone(),
+            action_type: DWCActionType::PausePlayback,
             play_audio_url: None,
             guild_id: Some(self.guild_id.clone().unwrap()),
             request_id: None,
             new_volume: None,
             seek_position: None,
             loop_times: None,
-        },self).await;
+        }),"communication",&mut charcoal.producer);
     }
 }

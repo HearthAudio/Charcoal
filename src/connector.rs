@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::process;
 
 use std::time::Duration;
-use hearth_interconnect::messages::{Message, MessageType};
+use hearth_interconnect::messages::{Message};
 use kafka;
 use kafka::consumer::Consumer;
 use kafka::producer::{Producer, Record, RequiredAcks};
