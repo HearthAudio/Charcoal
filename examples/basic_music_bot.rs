@@ -24,6 +24,7 @@ use tokio::sync::Mutex;
 use charcoal::actions::channel_manager::ChannelManager;
 use charcoal::actions::player::Player;
 use charcoal::{Charcoal, PlayerObject};
+use charcoal::actions::track_manager::TrackManager;
 
 struct Handler;
 
@@ -35,7 +36,7 @@ impl EventHandler for Handler {
 }
 
 #[group]
-#[commands(join, leave, play, ping)]
+#[commands(join, leave, play, ping,metadata)]
 struct General;
 
 pub struct PlayerObjectKey;
@@ -101,7 +102,15 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
     handler.join_channel(guild_id.to_string(),connect_to.to_string()).await;
 
     r.insert::<PlayerObjectKey>(Arc::new(Mutex::new(handler)));
-    println!("OUT OF SCOPE");
+    Ok(())
+}
+
+#[command]
+#[only_in(guilds)]
+async fn metadata(ctx: &Context, msg: &Message) -> CommandResult {
+    let r = ctx.data.read().await;
+    let manager = r.get::<PlayerObjectKey>().unwrap().lock().await;
+    manager.get_metadata().await;
     Ok(())
 }
 

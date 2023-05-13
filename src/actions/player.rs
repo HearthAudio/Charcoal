@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use hearth_interconnect::messages::Message;
 use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
 use log::error;
+use nanoid::nanoid;
 use crate::{PlayerObject, InternalIPC, InternalIPCType};
 use crate::connector::send_message;
 
@@ -21,7 +22,7 @@ impl Player for PlayerObject {
             action_type: DWCActionType::PlayDirectLink,
             play_audio_url: Some(url),
             guild_id: Some(self.guild_id.clone().unwrap()),
-            request_id: None,
+            request_id: Some(nanoid!()),
             new_volume: None,
             seek_position: None,
             loop_times: None,
@@ -34,7 +35,7 @@ impl Player for PlayerObject {
             action_type: DWCActionType::PlayFromYoutube,
             play_audio_url: Some(url),
             guild_id: Some(self.guild_id.clone().unwrap()),
-            request_id: None,
+            request_id: Some(nanoid!()),
             new_volume: None,
             seek_position: None,
             loop_times: None,

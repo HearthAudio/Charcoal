@@ -16,6 +16,7 @@ pub trait TrackManager {
     async fn seek_to_position(&self,position: Duration);
     async fn resume_playback(&self);
     async fn pause_playback(&self);
+    async fn get_metadata(&self);
 }
 #[async_trait]
 impl TrackManager for PlayerObject {
@@ -28,6 +29,19 @@ impl TrackManager for PlayerObject {
             guild_id: Some(self.guild_id.clone().unwrap()),
             request_id: None,
             new_volume: Some(playback_volume),
+            seek_position: None,
+            loop_times: None,
+        }),"communication",&mut charcoal.producer);
+    }
+    async fn get_metadata(&self) {
+        let mut charcoal = self.charcoal.lock().await;
+        send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
+            job_id: self.job_id.clone().unwrap(),
+            action_type: DWCActionType::GetMetaData,
+            play_audio_url: None,
+            guild_id: Some(self.guild_id.clone().unwrap()),
+            request_id: None,
+            new_volume: None,
             seek_position: None,
             loop_times: None,
         }),"communication",&mut charcoal.producer);
