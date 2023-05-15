@@ -1,12 +1,12 @@
 use std::sync::Arc;
-use async_trait::async_trait;
-use hearth_interconnect::messages::Message;
+use hearth_interconnect::messages::{ExternalQueueJobResponse, JobRequest, Message};
 use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
-use log::error;
+use log::{debug, error};
 use nanoid::nanoid;
-use crate::{PlayerObject, InternalIPC, InternalIPCType};
-use crate::background::processor::{IPCData, PlayCommand};
-use crate::connector::{send_message};
+use crate::{PlayerObject};
+use async_trait::async_trait;
+use crate::background::processor::{ExitChannel, IPCData, JoinChannel, PlayCommand};
+
 
 #[async_trait]
 pub trait Player {

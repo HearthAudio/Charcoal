@@ -5,9 +5,9 @@ use hearth_interconnect::messages::{Message, Metadata};
 use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
 use log::error;
 use nanoid::nanoid;
-use crate::{InternalIPC, InternalIPCType, PlayerObject};
+use crate::{PlayerObject};
 use crate::background::processor::{ForceStopLoop, GetMetadata, IPCData, LoopIndefinitely, LoopXTimes, PausePlayback, ResumePlayback, SeekToPosition, SetPlaybackVolume};
-use crate::connector::{boilerplate_parse_result, send_message};
+use crate::connector::{send_message};
 
 #[async_trait]
 pub trait TrackManager {
@@ -18,7 +18,7 @@ pub trait TrackManager {
     async fn seek_to_position(&self,position: Duration);
     async fn resume_playback(&self);
     async fn pause_playback(&self);
-    async fn get_metadata(&self) -> Result<Metadata,String>;
+    async fn get_metadata(&self) -> Metadata;
 }
 #[async_trait]
 impl TrackManager for PlayerObject {
@@ -81,12 +81,22 @@ impl TrackManager for PlayerObject {
         })).unwrap();
         
     }
-    async fn get_metadata(&self) -> Result<Metadata,String> {
+    async fn get_metadata(&self) -> Metadata {
         self.tx.send(IPCData::GetMetadata(GetMetadata {
             guild_id: self.guild_id.clone().unwrap(),
             job_id: self.job_id.clone().unwrap(),
             worker_id: self.worker_id.clone().unwrap(),
         })).unwrap();
-        todo!()
+        //
+        let mut res : Option<Metadata> = None;
+        while let Ok(msg) = self.tx.subscribe().recv().await {
+            match msg {
+                IPCData::InfrastructureMetadataResult(r) => {
+                    res = Some(r)
+                }
+                _ => {}
+            }
+        }
+        return res.unwrap();
     }
 }

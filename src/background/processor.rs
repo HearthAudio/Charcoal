@@ -1,8 +1,13 @@
 use std::collections::HashMap;
 use std::time::Duration;
+use hearth_interconnect::messages::{ExternalQueueJobResponse, Message, Metadata};
 use kafka::consumer::Consumer;
 use kafka::producer::Producer;
+use log::error;
 use tokio::sync::broadcast::{Receiver, Sender};
+use crate::background::actions::channel_manager::{exit_channel, join_channel};
+use crate::background::actions::player::{play_from_http, play_from_youtube};
+use crate::background::actions::track_manager::{force_stop_loop, get_metadata, loop_indefinitely, loop_x_times, pause_playback, resume_playback, seek_to_position, set_playback_volume};
 use crate::connector::{initialize_client, initialize_producer};
 
 #[derive(Clone,Debug)]
@@ -99,31 +104,97 @@ pub enum IPCData {
     PlayFromHttp(PlayCommand),
     PlayFromYoutube(PlayCommand),
     JoinChannel(JoinChannel),
-    ExitChannel(ExitChannel)
+    ExitChannel(ExitChannel),
+
+    InfrastructureMetadataResult(Metadata),
+    InfrastructureJoinResult(ExternalQueueJobResponse)
 }
 
 pub async fn processor(tx: Sender<IPCData>, mut rx: Receiver<IPCData>,brokers: Vec<String>) {
-    let producer : Producer = initialize_producer(initialize_client(&brokers));
+    let mut producer : Producer = initialize_producer(initialize_client(&brokers));
     let mut consumer = Consumer::from_client(initialize_client(&brokers))
         .with_topic(String::from("communication"))
         .create()
         .unwrap();
 
-    while let Ok(msg) = rx.recv().await {
-        println!("{:?}",msg);
+    println!("INIT BACKGROUND");
+    loop {
+        let msg = rx.try_recv();
         match msg {
-            IPCData::SetPlaybackVolume(d) => {}
-            IPCData::ForceStopLoop(d) => {}
-            IPCData::LoopIndefinitely(d) => {}
-            IPCData::LoopXTimes(d) => {}
-            IPCData::SeekToPosition(d) => {}
-            IPCData::ResumePlayback(d) => {}
-            IPCData::PausePlayback(d) => {}
-            IPCData::GetMetadata(d) => {}
-            IPCData::PlayFromHttp(d) => {}
-            IPCData::PlayFromYoutube(d) => {}
-            IPCData::JoinChannel(d) => {}
-            IPCData::ExitChannel(d) => {}
+            Ok(msg) => {
+                println!("{:?}",msg);
+                match msg {
+                    IPCData::SetPlaybackVolume(d) => {
+                        set_playback_volume(&mut producer,d.guild_id,d.job_id,d.volume,d.worker_id).await;
+                    }
+                    IPCData::ForceStopLoop(d) => {
+                        force_stop_loop(&mut producer,d.guild_id,d.job_id,d.worker_id).await;
+                    }
+                    IPCData::LoopIndefinitely(d) => {
+                        loop_indefinitely(&mut producer,d.guild_id,d.job_id,d.worker_id).await;
+                    }
+                    IPCData::LoopXTimes(d) => {
+                        loop_x_times(&mut producer,d.guild_id,d.job_id,d.times,d.worker_id).await;
+                    }
+                    IPCData::SeekToPosition(d) => {
+                        seek_to_position(&mut producer,d.guild_id,d.job_id,d.pos,d.worker_id).await;
+                    }
+                    IPCData::ResumePlayback(d) => {
+                        resume_playback(&mut producer,d.guild_id,d.job_id,d.worker_id).await;
+                    }
+                    IPCData::PausePlayback(d) => {
+                        pause_playback(&mut producer,d.guild_id,d.job_id,d.worker_id).await;
+                    }
+                    IPCData::GetMetadata(d) => {
+                        get_metadata(&mut producer,d.guild_id,d.job_id,d.worker_id).await;
+                    }
+                    IPCData::PlayFromHttp(d) => {
+                        play_from_http(&mut producer,d.guild_id,d.job_id,d.url,d.worker_id).await;
+                    }
+                    IPCData::PlayFromYoutube(d) => {
+                        play_from_youtube(&mut producer,d.guild_id,d.job_id,d.url,d.worker_id).await;
+                    }
+                    IPCData::JoinChannel(d) => {
+                        join_channel(d.channel_id,d.guild_id,&mut producer).await;
+                    }
+                    IPCData::ExitChannel(d) => {
+                        exit_channel(d.guild_id,d.job_id,&mut producer,d.worker_id).await;
+                    }
+                    IPCData::InfrastructureMetadataResult(_) => {}
+                    IPCData::InfrastructureJoinResult(_) => {}
+                }
+            },
+            Err(e) => {}
         }
+        // Runner
+        let mss = consumer.poll().unwrap();
+        if mss.is_empty() {
+            continue;
+        }
+
+        for ms in mss.iter() {
+            for m in ms.messages() {
+                let parsed_message : Result<Message,serde_json::Error> = serde_json::from_slice(&m.value);
+                match parsed_message {
+                    Ok(message) => {
+                        match message {
+                            Message::ErrorReport(error_report) => {
+                                error!("{} - Error with Job ID: {} and Request ID: {}",error_report.error,error_report.job_id,error_report.request_id);
+                            },
+                            Message::ExternalMetadataResult(m) => {
+                                tx.send(IPCData::InfrastructureMetadataResult(m)).unwrap();
+                            },
+                            Message::ExternalQueueJobResponse(j) => {
+                                tx.send(IPCData::InfrastructureJoinResult(j)).unwrap();
+                            }
+                            _ => {}
+                        }
+                    },
+                    Err(e) => error!("{} - Failed to parse message",e),
+                }
+            }
+            let _ = consumer.consume_messageset(ms);
+        }
+        consumer.commit_consumed().unwrap();
     }
 }

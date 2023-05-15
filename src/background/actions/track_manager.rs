@@ -6,11 +6,12 @@ use kafka::producer::Producer;
 use log::error;
 use nanoid::nanoid;
 use snafu::Whatever;
-use crate::connector::{boilerplate_parse_result, send_message};
+use crate::connector::{send_message};
 
-async fn set_playback_volume(producer: &mut Producer,guild_id: String,job_id: String,playback_volume: f32) {
+pub async fn set_playback_volume(producer: &mut Producer,guild_id: String,job_id: String,playback_volume: f32,worker_id: String) {
     send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
         job_id,
+        worker_id,
         action_type: DWCActionType::SetPlaybackVolume,
         play_audio_url: None,
         guild_id: Some(guild_id),
@@ -21,7 +22,7 @@ async fn set_playback_volume(producer: &mut Producer,guild_id: String,job_id: St
     }),"communication",producer);
 
 }
-async fn force_stop_loop(producer: &mut Producer,guild_id: String,job_id: String,) {
+pub async fn force_stop_loop(producer: &mut Producer,guild_id: String,job_id: String,worker_id: String) {
     send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
         job_id,
         action_type: DWCActionType::ForceStopLoop,
@@ -31,10 +32,11 @@ async fn force_stop_loop(producer: &mut Producer,guild_id: String,job_id: String
         new_volume: None,
         seek_position: None,
         loop_times: None,
+        worker_id
     }),"communication",producer);
 
 }
-async fn loop_indefinitely(producer: &mut Producer,guild_id: String,job_id: String,) {
+pub async fn loop_indefinitely(producer: &mut Producer,guild_id: String,job_id: String,worker_id: String) {
     send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
         job_id,
         action_type: DWCActionType::LoopForever,
@@ -44,10 +46,11 @@ async fn loop_indefinitely(producer: &mut Producer,guild_id: String,job_id: Stri
         new_volume: None,
         seek_position: None,
         loop_times: None,
+        worker_id
     }),"communication",producer);
 
 }
-async fn loop_x_times(producer: &mut Producer,guild_id: String,job_id: String,times: usize) {
+pub async fn loop_x_times(producer: &mut Producer,guild_id: String,job_id: String,times: usize,worker_id: String) {
     send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
         job_id,
         action_type: DWCActionType::LoopXTimes,
@@ -57,10 +60,11 @@ async fn loop_x_times(producer: &mut Producer,guild_id: String,job_id: String,ti
         new_volume: None,
         seek_position: None,
         loop_times: Some(times.clone()),
+        worker_id
     }),"communication",producer);
 
 }
-async fn seek_to_position(producer: &mut Producer,guild_id: String,job_id: String,position: Duration) {
+pub async fn seek_to_position(producer: &mut Producer,guild_id: String,job_id: String,position: Duration,worker_id: String) {
     send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
         job_id,
         action_type: DWCActionType::SeekToPosition,
@@ -70,10 +74,11 @@ async fn seek_to_position(producer: &mut Producer,guild_id: String,job_id: Strin
         new_volume: None,
         seek_position: Some(position.as_millis() as u64),
         loop_times: None,
+        worker_id
     }),"communication",producer);
 
 }
-async fn resume_playback(producer: &mut Producer,guild_id: String,job_id: String) {
+pub async fn resume_playback(producer: &mut Producer,guild_id: String,job_id: String,worker_id: String) {
     send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
         job_id,
         action_type: DWCActionType::ResumePlayback,
@@ -83,10 +88,11 @@ async fn resume_playback(producer: &mut Producer,guild_id: String,job_id: String
         new_volume: None,
         seek_position: None,
         loop_times: None,
+        worker_id
     }),"communication",producer);
 
 }
-async fn pause_playback(producer: &mut Producer,guild_id: String,job_id: String) {
+pub async fn pause_playback(producer: &mut Producer,guild_id: String,job_id: String,worker_id: String) {
     send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
         job_id,
         action_type: DWCActionType::PausePlayback,
@@ -96,12 +102,14 @@ async fn pause_playback(producer: &mut Producer,guild_id: String,job_id: String)
         new_volume: None,
         seek_position: None,
         loop_times: None,
+        worker_id
     }),"communication",producer);
 
 }
-async fn get_metadata(producer: &mut Producer,guild_id: String,job_id: String,consumer: &mut Consumer) -> Option<Metadata> {
+pub async fn get_metadata(producer: &mut Producer,guild_id: String,job_id: String,worker_id: String) {
     send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
         job_id,
+        worker_id,
         action_type: DWCActionType::GetMetaData,
         play_audio_url: None,
         guild_id: Some(guild_id),
@@ -110,21 +118,4 @@ async fn get_metadata(producer: &mut Producer,guild_id: String,job_id: String,co
         seek_position: None,
         loop_times: None,
     }),"communication",producer);
-    // Parse result
-    let mut result: Option<Metadata> = None;
-    boilerplate_parse_result(|message| {
-        match message {
-            Message::ErrorReport(error_report) => {
-                error!("{} - Error with Job ID: {} and Request ID: {}",error_report.error,error_report.job_id,error_report.request_id);
-                return false;
-            },
-            Message::ExternalMetadataResult(metadata) => {
-                result = Some(metadata);
-                return false;
-            }
-            _ => {}
-        }
-        return true;
-    }, consumer);
-    return result;
 }
