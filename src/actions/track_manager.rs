@@ -1,11 +1,12 @@
 use std::sync::Arc;
 use std::time::Duration;
 use async_trait::async_trait;
-use hearth_interconnect::messages::Message;
+use hearth_interconnect::messages::{Message, Metadata};
 use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
 use log::error;
+use nanoid::nanoid;
 use crate::{InternalIPC, InternalIPCType, PlayerObject};
-use crate::connector::send_message;
+use crate::connector::{boilerplate_parse_result, send_message};
 
 #[async_trait]
 pub trait TrackManager {
@@ -16,7 +17,7 @@ pub trait TrackManager {
     async fn seek_to_position(&self,position: Duration);
     async fn resume_playback(&self);
     async fn pause_playback(&self);
-    async fn get_metadata(&self);
+    async fn get_metadata(&self) -> Option<Metadata>;
 }
 #[async_trait]
 impl TrackManager for PlayerObject {
@@ -29,19 +30,6 @@ impl TrackManager for PlayerObject {
             guild_id: Some(self.guild_id.clone().unwrap()),
             request_id: None,
             new_volume: Some(playback_volume),
-            seek_position: None,
-            loop_times: None,
-        }),"communication",&mut charcoal.producer);
-    }
-    async fn get_metadata(&self) {
-        let mut charcoal = self.charcoal.lock().await;
-        send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
-            job_id: self.job_id.clone().unwrap(),
-            action_type: DWCActionType::GetMetaData,
-            play_audio_url: None,
-            guild_id: Some(self.guild_id.clone().unwrap()),
-            request_id: None,
-            new_volume: None,
             seek_position: None,
             loop_times: None,
         }),"communication",&mut charcoal.producer);
@@ -123,5 +111,34 @@ impl TrackManager for PlayerObject {
             seek_position: None,
             loop_times: None,
         }),"communication",&mut charcoal.producer);
+    }
+    async fn get_metadata(&self) -> Option<Metadata> {
+        let mut charcoal = self.charcoal.lock().await;
+        send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
+            job_id: self.job_id.clone().unwrap(),
+            action_type: DWCActionType::GetMetaData,
+            play_audio_url: None,
+            guild_id: Some(self.guild_id.clone().unwrap()),
+            request_id: Some(nanoid!()),
+            new_volume: None,
+            seek_position: None,
+            loop_times: None,
+        }),"communication",&mut charcoal.producer);
+        // Parse result
+        let mut result: Option<Metadata> = None;
+        boilerplate_parse_result(|message| {
+            match message {
+                Message::ErrorReport(error_report) => {
+                    error!("{} - Error with Job ID: {} and Request ID: {}",error_report.error,error_report.job_id,error_report.request_id)
+                },
+                Message::ExternalMetadataResult(metadata) => {
+                    result = Some(metadata);
+                    return false;
+                }
+                _ => {}
+            }
+            return true;
+        },&mut self.charcoal.lock().await.consumer);
+        return result;
     }
 }

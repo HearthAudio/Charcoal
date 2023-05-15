@@ -150,9 +150,7 @@ async fn play(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
         return Ok(());
     }
 
-    println!("GET LOCK");
     let r = ctx.data.read().await;
-    println!("GOT LOCK");
     let mut manager = r.get::<PlayerObjectKey>().unwrap().lock().await;
     manager.play_from_http(url).await;
     check_msg(msg.channel_id.say(&ctx.http, "Playing song").await);

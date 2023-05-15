@@ -117,3 +117,31 @@ pub fn send_message(message: &Message, topic: &str, producer: &mut Producer) {
     let data = serde_json::to_string(message).unwrap();
     producer.send(&Record::from_value(topic, data)).unwrap();
 }
+
+
+pub fn boilerplate_parse_result<T>(mut message_parser: T, mut consumer: &mut Consumer) where
+T: FnMut(Message) -> bool
+{
+    let mut check_result = true;
+    while check_result {
+        let mss = consumer.poll().unwrap();
+        if mss.is_empty() {
+            debug!("No messages available right now.");
+        }
+
+        for ms in mss.iter() {
+            for m in ms.messages() {
+                let parsed_message : Result<Message,serde_json::Error> = serde_json::from_slice(&m.value);
+                match parsed_message {
+                    Ok(message) => {
+                        let end = message_parser(message);
+                        check_result = end;
+                    },
+                    Err(e) => error!("{} - Failed to parse message",e),
+                }
+            }
+            let _ = consumer.consume_messageset(ms);
+        }
+        consumer.commit_consumed().unwrap();
+    }
+}

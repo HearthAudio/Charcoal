@@ -5,7 +5,7 @@ use log::{debug, error};
 use nanoid::nanoid;
 use crate::{InfrastructureType, InternalIPC, InternalIPCType, PlayerObject, StandardActionType};
 use async_trait::async_trait;
-use crate::connector::send_message;
+use crate::connector::{boilerplate_parse_result, send_message};
 
 #[async_trait]
 pub trait ChannelManager {
@@ -23,38 +23,21 @@ impl ChannelManager for PlayerObject {
             voice_channel_id,
             request_id: nanoid!(),
         }), "communication", &mut charcoal.producer);
-        //
-        let mut check_result = true;
-        while check_result {
-            let mss = charcoal.consumer.poll().unwrap();
-            if mss.is_empty() {
-                debug!("No messages available right now.");
+        // Parse result
+        boilerplate_parse_result(|message| {
+            match message {
+                Message::ErrorReport(error_report) => {
+                    error!("{} - Error with Job ID: {} and Request ID: {}",error_report.error,error_report.job_id,error_report.request_id)
+                },
+                Message::ExternalQueueJobResponse(res) => {
+                    self.worker_id = Some(res.worker_id);
+                    self.job_id = Some(res.job_id);
+                    return false;
+                },
+                _ => {}
             }
-
-            for ms in mss.iter() {
-                for m in ms.messages() {
-                    let parsed_message : Result<Message,serde_json::Error> = serde_json::from_slice(&m.value);
-                    match parsed_message {
-                        Ok(message) => {
-                            match message {
-                                Message::ErrorReport(error_report) => {
-                                    error!("{} - Error with Job ID: {} and Request ID: {}",error_report.error,error_report.job_id,error_report.request_id)
-                                },
-                                Message::ExternalQueueJobResponse(res) => {
-                                    self.worker_id = Some(res.worker_id);
-                                    self.job_id = Some(res.job_id);
-                                    check_result = false;
-                                },
-                                _ => {}
-                            }
-                        },
-                        Err(e) => error!("{} - Failed to parse message",e),
-                    }
-                }
-                let _ = charcoal.consumer.consume_messageset(ms);
-            }
-            charcoal.consumer.commit_consumed().unwrap();
-        }
+            return true;
+        },&mut self.charcoal.lock().await.consumer)
     }
     async fn exit_channel(&self) {
         let mut charcoal = self.charcoal.lock().await;
