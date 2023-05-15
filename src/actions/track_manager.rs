@@ -32,6 +32,7 @@ impl TrackManager for PlayerObject {
             new_volume: Some(playback_volume),
             seek_position: None,
             loop_times: None,
+            worker_id: self.worker_id.clone().unwrap(),
         }),"communication",&mut charcoal.producer);
         
     }
@@ -46,6 +47,7 @@ impl TrackManager for PlayerObject {
             new_volume: None,
             seek_position: None,
             loop_times: None,
+            worker_id: self.worker_id.clone().unwrap(),
         }),"communication",&mut charcoal.producer);
         
     }
@@ -60,6 +62,7 @@ impl TrackManager for PlayerObject {
             new_volume: None,
             seek_position: None,
             loop_times: None,
+            worker_id: self.worker_id.clone().unwrap(),
         }),"communication",&mut charcoal.producer);
         
     }
@@ -74,6 +77,7 @@ impl TrackManager for PlayerObject {
             new_volume: None,
             seek_position: None,
             loop_times: Some(times.clone()),
+            worker_id: self.worker_id.clone().unwrap(),
         }),"communication",&mut charcoal.producer);
         
     }
@@ -88,6 +92,7 @@ impl TrackManager for PlayerObject {
             new_volume: None,
             seek_position: Some(position.as_millis() as u64),
             loop_times: None,
+            worker_id: self.worker_id.clone().unwrap(),
         }),"communication",&mut charcoal.producer);
         
     }
@@ -102,6 +107,7 @@ impl TrackManager for PlayerObject {
             new_volume: None,
             seek_position: None,
             loop_times: None,
+            worker_id: self.worker_id.clone().unwrap(),
         }),"communication",&mut charcoal.producer);
         
     }
@@ -116,6 +122,7 @@ impl TrackManager for PlayerObject {
             new_volume: None,
             seek_position: None,
             loop_times: None,
+            worker_id: self.worker_id.clone().unwrap(),
         }),"communication",&mut charcoal.producer);
         
     }
@@ -130,6 +137,7 @@ impl TrackManager for PlayerObject {
             new_volume: None,
             seek_position: None,
             loop_times: None,
+            worker_id: self.worker_id.clone().unwrap(),
         }),"communication",&mut charcoal.producer);
         // Parse result
         let mut result: Option<Metadata> = None;

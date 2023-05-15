@@ -51,6 +51,7 @@ impl ChannelManager for PlayerObject {
             new_volume: None,
             seek_position: None,
             loop_times: None,
+            worker_id: self.worker_id.clone().unwrap(),
         }),"communication",&mut charcoal.producer);
         
     }

@@ -26,7 +26,8 @@ impl Player for PlayerObject {
             new_volume: None,
             seek_position: None,
             loop_times: None,
-        }),"communication",&mut charcoal.producer);
+            worker_id: self.worker_id.clone().unwrap(),
+        }), "communication", &mut charcoal.producer);
         
     }
     async fn play_from_youtube(&mut self,url: String) {
@@ -40,6 +41,7 @@ impl Player for PlayerObject {
             new_volume: None,
             seek_position: None,
             loop_times: None,
+            worker_id: self.worker_id.clone().unwrap(),
         }),"communication",&mut charcoal.producer);
         
     }
