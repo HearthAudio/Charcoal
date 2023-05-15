@@ -52,6 +52,5 @@ impl ChannelManager for PlayerObject {
             seek_position: None,
             loop_times: None,
         }),"communication",&mut charcoal.producer);
-        
     }
 }

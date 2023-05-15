@@ -20,6 +20,7 @@ pub mod actions;
 mod logger;
 pub mod serenity;
 mod constants;
+mod background;
 
 #[derive(Clone,Debug)]
 pub enum StandardActionType {
@@ -85,7 +86,6 @@ pub async fn init_charcoal(broker: String) -> Arc<Mutex<Charcoal>>  {
     //TODO: Sort this mess out
     let producer : Producer = initialize_producer(initialize_client(&brokers));
     let mut consumer = Consumer::from_client(initialize_client(&brokers))
-
     .with_topic(String::from("communication"))
     .create()
     .unwrap();
