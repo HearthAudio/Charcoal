@@ -92,7 +92,7 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
     let r = ctx.data.write().await;
     let manager = r.get::<CharcoalKey>().unwrap();
 
-    let mut handler = PlayerObject::new(manager.clone()).await;
+    let mut handler = PlayerObject::new().await;
     handler.join_channel(guild_id.to_string(),connect_to.to_string()).await;
 
     // r.insert::<PlayerObjectKey>(Arc::new(Mutex::new(handler)));
@@ -161,16 +161,13 @@ async fn play(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     let guild = msg.guild(&ctx.cache).unwrap();
     let guild_id = guild.id;
     println!("GET: {}",guild_id.to_string());
-    let mut manager = r.get::<CharcoalKey>().unwrap().lock().await;
+    let mut manager = r.get::<CharcoalKey>();
+    let mut mx = manager.unwrap().lock().await;
+    let handler =  mx.players.get_mut(&guild_id.to_string()).unwrap();
     println!("GOT MANAGER");
 
-    for (key, value) in &manager.players {
-        println!("{}: PO", key);
-    }
 
-    let manager = manager.get_player(&guild_id.to_string());
-
-    manager.play_from_http(url).await;
+    handler.play_from_http(url).await;
     check_msg(msg.channel_id.say(&ctx.http, "Playing song").await);
 
     Ok(())

@@ -5,7 +5,7 @@ use hearth_interconnect::messages::{Message, Metadata};
 use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
 use log::error;
 use nanoid::nanoid;
-use crate::{InternalIPC, InternalIPCType, PlayerObject};
+use crate::{CONSUMER, InternalIPC, InternalIPCType, PlayerObject, PRODUCER};
 use crate::connector::{boilerplate_parse_result, send_message};
 
 #[async_trait]
@@ -22,7 +22,9 @@ pub trait TrackManager {
 #[async_trait]
 impl TrackManager for PlayerObject {
     async fn set_playback_volume(&self,playback_volume: f32) {
-        let mut charcoal = self.charcoal.lock().await;
+        let mut px = PRODUCER.lock().await;
+        let p = px.as_mut();
+
         send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
             action_type: DWCActionType::SetPlaybackVolume,
@@ -33,11 +35,14 @@ impl TrackManager for PlayerObject {
             seek_position: None,
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
-        }),"communication",&mut charcoal.producer);
+        }),"communication",&mut *p.unwrap());
         
     }
     async fn force_stop_loop(&self) {
-        let mut charcoal = self.charcoal.lock().await;
+
+        let mut px = PRODUCER.lock().await;
+        let p = px.as_mut();
+
         send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
             action_type: DWCActionType::ForceStopLoop,
@@ -48,11 +53,14 @@ impl TrackManager for PlayerObject {
             seek_position: None,
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
-        }),"communication",&mut charcoal.producer);
+        }),"communication",&mut *p.unwrap());
         
     }
     async fn loop_indefinitely(&self) {
-        let mut charcoal = self.charcoal.lock().await;
+
+        let mut px = PRODUCER.lock().await;
+        let p = px.as_mut();
+
         send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
             action_type: DWCActionType::LoopForever,
@@ -63,11 +71,14 @@ impl TrackManager for PlayerObject {
             seek_position: None,
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
-        }),"communication",&mut charcoal.producer);
+        }),"communication",&mut *p.unwrap());
         
     }
     async fn loop_x_times(&self,times: usize) {
-        let mut charcoal = self.charcoal.lock().await;
+
+        let mut px = PRODUCER.lock().await;
+        let p = px.as_mut();
+
         send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
             action_type: DWCActionType::LoopXTimes,
@@ -78,11 +89,14 @@ impl TrackManager for PlayerObject {
             seek_position: None,
             loop_times: Some(times.clone()),
             worker_id: self.worker_id.clone().unwrap(),
-        }),"communication",&mut charcoal.producer);
+        }),"communication",&mut *p.unwrap());
         
     }
     async fn seek_to_position(&self,position: Duration) {
-        let mut charcoal = self.charcoal.lock().await;
+
+        let mut px = PRODUCER.lock().await;
+        let p = px.as_mut();
+
         send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
             action_type: DWCActionType::SeekToPosition,
@@ -93,11 +107,14 @@ impl TrackManager for PlayerObject {
             seek_position: Some(position.as_millis() as u64),
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
-        }),"communication",&mut charcoal.producer);
+        }),"communication",&mut *p.unwrap());
         
     }
     async fn resume_playback(&self) {
-        let mut charcoal = self.charcoal.lock().await;
+
+        let mut px = PRODUCER.lock().await;
+        let p = px.as_mut();
+
         send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
             action_type: DWCActionType::ResumePlayback,
@@ -108,11 +125,14 @@ impl TrackManager for PlayerObject {
             seek_position: None,
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
-        }),"communication",&mut charcoal.producer);
+        }),"communication",&mut *p.unwrap());
         
     }
     async fn pause_playback(&self) {
-        let mut charcoal = self.charcoal.lock().await;
+
+        let mut px = PRODUCER.lock().await;
+        let p = px.as_mut();
+
         send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
             action_type: DWCActionType::PausePlayback,
@@ -123,11 +143,17 @@ impl TrackManager for PlayerObject {
             seek_position: None,
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
-        }),"communication",&mut charcoal.producer);
+        }),"communication",&mut *p.unwrap());
         
     }
     async fn get_metadata(&self) -> Option<Metadata> {
-        let mut charcoal = self.charcoal.lock().await;
+
+        let mut px = PRODUCER.lock().await;
+        let p = px.as_mut();
+
+        let mut cx = CONSUMER.lock().await;
+        let c = cx.as_mut();
+
         send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
             action_type: DWCActionType::GetMetaData,
@@ -138,7 +164,7 @@ impl TrackManager for PlayerObject {
             seek_position: None,
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
-        }),"communication",&mut charcoal.producer);
+        }),"communication",&mut *p.unwrap());
         // Parse result
         let mut result: Option<Metadata> = None;
         boilerplate_parse_result(|message| {
@@ -154,7 +180,7 @@ impl TrackManager for PlayerObject {
                 _ => {}
             }
             return true;
-        },&mut charcoal.consumer);
+        },&mut *c.unwrap());
         return result;
     }
 }

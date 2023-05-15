@@ -10,6 +10,7 @@ use hearth_interconnect::messages::JobRequest;
 use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
 use kafka::consumer::Consumer;
 use kafka::producer::Producer;
+use lazy_static::lazy_static;
 use log::error;
 use nanoid::nanoid;
 use tokio::sync::Mutex;
@@ -21,6 +22,11 @@ pub mod actions;
 mod logger;
 pub mod serenity;
 mod constants;
+
+lazy_static! {
+    pub static ref PRODUCER: Mutex<Option<Producer>> = Mutex::new(None);
+    pub static ref CONSUMER: Mutex<Option<Consumer>> = Mutex::new(None);
+}
 
 #[derive(Clone,Debug)]
 pub enum StandardActionType {
@@ -57,7 +63,6 @@ pub struct InternalIPC {
 }
 
 pub struct PlayerObject {
-    charcoal: Arc<Mutex<Charcoal>>,
     worker_id: Option<String>,
     job_id:  Option<String>,
     guild_id:  Option<String>,
@@ -65,9 +70,8 @@ pub struct PlayerObject {
 }
 
 impl PlayerObject {
-    pub async fn new(charcoal: Arc<Mutex<Charcoal>>) -> Self {
+    pub async fn new() -> Self {
         PlayerObject {
-            charcoal: charcoal,
             worker_id: None,
             job_id: None,
             guild_id: None,
@@ -77,8 +81,6 @@ impl PlayerObject {
 }
 
 pub struct Charcoal {
-    producer: Producer,
-    consumer: Consumer,
     pub players: HashMap<String,PlayerObject> // Guild ID to PlayerObject
 }
 
@@ -97,9 +99,11 @@ pub async fn init_charcoal(broker: String) -> Arc<Mutex<Charcoal>>  {
     .with_topic(String::from("communication"))
     .create()
     .unwrap();
+
+    *PRODUCER.lock().await = Some(producer);
+    *CONSUMER.lock().await = Some(consumer);
+
     return Arc::new(Mutex::new(Charcoal {
-        producer,
-        consumer,
         players: HashMap::new()
     }));
 }

@@ -3,26 +3,30 @@ use hearth_interconnect::messages::{JobRequest, Message};
 use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
 use log::{debug, error};
 use nanoid::nanoid;
-use crate::{InfrastructureType, InternalIPC, InternalIPCType, PlayerObject, StandardActionType};
+use crate::{CONSUMER, InfrastructureType, InternalIPC, InternalIPCType, PlayerObject, PRODUCER, StandardActionType};
 use async_trait::async_trait;
 use crate::connector::{ boilerplate_parse_result, send_message};
 
 #[async_trait]
 pub trait ChannelManager {
-    async fn join_channel(&mut self,guild_id: String,voice_channel_id: String);
+    async fn create_job(&mut self);
+    async fn join_channel(&mut self, voice_channel_id: String,guild_id: String);
     async fn exit_channel(&self);
 }
 
 #[async_trait]
 impl ChannelManager for PlayerObject {
-    async fn join_channel(&mut self, guild_id: String, voice_channel_id: String) {
-        self.guild_id = Some(guild_id.clone());
-        let mut charcoal = self.charcoal.lock().await;
+    async fn create_job(&mut self) {
+
+        let mut px = PRODUCER.lock().await;
+        let p = px.as_mut();
+
+        let mut cx = CONSUMER.lock().await;
+        let c = cx.as_mut();
+
         send_message(&Message::ExternalQueueJob(JobRequest {
-            guild_id,
-            voice_channel_id,
             request_id: nanoid!(),
-        }), "communication", &mut charcoal.producer);
+        }), "communication", &mut p.unwrap());
         // Parse result
         boilerplate_parse_result(|message| {
             match message {
@@ -38,10 +42,50 @@ impl ChannelManager for PlayerObject {
                 _ => {}
             }
             return true;
-        },&mut charcoal.consumer);
+        },&mut *c.unwrap());
+    }
+    async fn join_channel(&mut self, voice_channel_id: String,guild_id: String) {
+        self.guild_id = Some(guild_id);
+
+        let mut px = PRODUCER.lock().await;
+        let p = px.as_mut();
+
+        let mut cx = CONSUMER.lock().await;
+        let c = cx.as_mut();
+
+        send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
+            job_id: self.job_id.unwrap(),
+            guild_id: self.guild_id.clone(),
+            voice_channel_id: Some(voice_channel_id),
+            play_audio_url: None,
+            action_type: DWCActionType::JoinChannel,
+            request_id: Some(nanoid!()),
+            new_volume: None,
+            seek_position: None,
+            loop_times: None,
+            worker_id: self.worker_id.unwrap(),
+        }), "communication", &mut p.unwrap());
+        // Parse result
+        boilerplate_parse_result(|message| {
+            match message {
+                Message::ErrorReport(error_report) => {
+                    error!("{} - Error with Job ID: {} and Request ID: {}",error_report.error,error_report.job_id,error_report.request_id);
+                    return false;
+                },
+                Message::ExternalQueueJobResponse(res) => {
+                    self.worker_id = Some(res.worker_id);
+                    self.job_id = Some(res.job_id);
+                    return false;
+                },
+                _ => {}
+            }
+            return true;
+        },&mut *c.unwrap());
     }
     async fn exit_channel(&self) {
-        let mut charcoal = self.charcoal.lock().await;
+        let mut px = PRODUCER.lock().await;
+        let p = px.as_mut();
+
         send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
             action_type: DWCActionType::LeaveChannel,
@@ -52,7 +96,8 @@ impl ChannelManager for PlayerObject {
             seek_position: None,
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
-        }),"communication",&mut charcoal.producer);
+            voice_channel_id: None,
+        }), "communication", &mut *p.unwrap());
         
     }
 }
