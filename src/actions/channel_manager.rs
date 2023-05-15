@@ -54,7 +54,7 @@ impl ChannelManager for PlayerObject {
         let c = cx.as_mut();
 
         send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
-            job_id: self.job_id.unwrap(),
+            job_id: self.job_id.clone().unwrap(),
             guild_id: self.guild_id.clone(),
             voice_channel_id: Some(voice_channel_id),
             play_audio_url: None,
@@ -63,24 +63,8 @@ impl ChannelManager for PlayerObject {
             new_volume: None,
             seek_position: None,
             loop_times: None,
-            worker_id: self.worker_id.unwrap(),
+            worker_id: self.worker_id.clone().unwrap(),
         }), "communication", &mut p.unwrap());
-        // Parse result
-        boilerplate_parse_result(|message| {
-            match message {
-                Message::ErrorReport(error_report) => {
-                    error!("{} - Error with Job ID: {} and Request ID: {}",error_report.error,error_report.job_id,error_report.request_id);
-                    return false;
-                },
-                Message::ExternalQueueJobResponse(res) => {
-                    self.worker_id = Some(res.worker_id);
-                    self.job_id = Some(res.job_id);
-                    return false;
-                },
-                _ => {}
-            }
-            return true;
-        },&mut *c.unwrap());
     }
     async fn exit_channel(&self) {
         let mut px = PRODUCER.lock().await;

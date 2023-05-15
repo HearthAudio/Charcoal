@@ -29,6 +29,7 @@ impl Player for PlayerObject {
             seek_position: None,
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
+            voice_channel_id: None
         }), "communication", &mut *p.unwrap());
         
     }
@@ -47,6 +48,7 @@ impl Player for PlayerObject {
             seek_position: None,
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
+            voice_channel_id: None
         }),"communication",&mut *p.unwrap());
         
     }

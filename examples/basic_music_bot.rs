@@ -90,13 +90,19 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
     };
 
     let r = ctx.data.write().await;
-    let manager = r.get::<CharcoalKey>().unwrap();
+    let mut manager = r.get::<CharcoalKey>().unwrap().lock().await;
 
-    let mut handler = PlayerObject::new().await;
-    handler.join_channel(guild_id.to_string(),connect_to.to_string()).await;
+    if manager.players.contains_key(&guild_id.to_string()) {
+        let handler =  manager.players.get_mut(&guild_id.to_string()).unwrap();
+        handler.join_channel(guild_id.to_string(),connect_to.to_string()).await;
+    } else {
+        let mut handler = PlayerObject::new().await;
+        handler.create_job().await;
+        handler.join_channel(guild_id.to_string(),connect_to.to_string()).await;
+        manager.players.insert(guild_id.to_string(), handler);
+    }
 
     // r.insert::<PlayerObjectKey>(Arc::new(Mutex::new(handler)));
-    manager.lock().await.players.insert(guild_id.to_string(), handler);
     println!("Inserted PLY");
     Ok(())
 }

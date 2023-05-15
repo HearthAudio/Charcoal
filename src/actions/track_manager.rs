@@ -35,6 +35,7 @@ impl TrackManager for PlayerObject {
             seek_position: None,
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
+            voice_channel_id: None
         }),"communication",&mut *p.unwrap());
         
     }
@@ -53,6 +54,7 @@ impl TrackManager for PlayerObject {
             seek_position: None,
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
+            voice_channel_id: None
         }),"communication",&mut *p.unwrap());
         
     }
@@ -71,6 +73,7 @@ impl TrackManager for PlayerObject {
             seek_position: None,
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
+            voice_channel_id: None
         }),"communication",&mut *p.unwrap());
         
     }
@@ -89,6 +92,7 @@ impl TrackManager for PlayerObject {
             seek_position: None,
             loop_times: Some(times.clone()),
             worker_id: self.worker_id.clone().unwrap(),
+            voice_channel_id: None
         }),"communication",&mut *p.unwrap());
         
     }
@@ -107,6 +111,7 @@ impl TrackManager for PlayerObject {
             seek_position: Some(position.as_millis() as u64),
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
+            voice_channel_id: None
         }),"communication",&mut *p.unwrap());
         
     }
@@ -125,6 +130,7 @@ impl TrackManager for PlayerObject {
             seek_position: None,
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
+            voice_channel_id: None
         }),"communication",&mut *p.unwrap());
         
     }
@@ -143,6 +149,7 @@ impl TrackManager for PlayerObject {
             seek_position: None,
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
+            voice_channel_id: None
         }),"communication",&mut *p.unwrap());
         
     }
@@ -164,6 +171,7 @@ impl TrackManager for PlayerObject {
             seek_position: None,
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
+            voice_channel_id: None
         }),"communication",&mut *p.unwrap());
         // Parse result
         let mut result: Option<Metadata> = None;
