@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::{Arc};
 use std::thread::sleep;
@@ -78,6 +79,13 @@ impl PlayerObject {
 pub struct Charcoal {
     producer: Producer,
     consumer: Consumer,
+    pub players: HashMap<String,PlayerObject> // Guild ID to PlayerObject
+}
+
+impl Charcoal {
+    pub fn get_player(&mut self,guild_id: &String) -> &mut PlayerObject {
+        return self.players.get_mut(guild_id).unwrap();
+    }
 }
 
 pub async fn init_charcoal(broker: String) -> Arc<Mutex<Charcoal>>  {
@@ -91,6 +99,7 @@ pub async fn init_charcoal(broker: String) -> Arc<Mutex<Charcoal>>  {
     .unwrap();
     return Arc::new(Mutex::new(Charcoal {
         producer,
-        consumer
+        consumer,
+        players: HashMap::new()
     }));
 }

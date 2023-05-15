@@ -16,7 +16,9 @@ pub trait Player {
 #[async_trait]
 impl Player for PlayerObject {
     async fn play_from_http(&mut self, url: String) {
+        println!("GLOCK");
         let mut charcoal = self.charcoal.lock().await;
+        println!("GOTLOCK");
         send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
             action_type: DWCActionType::PlayDirectLink,
