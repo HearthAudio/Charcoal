@@ -19,6 +19,7 @@ mod connector;
 pub mod actions;
 mod logger;
 pub mod serenity;
+mod constants;
 
 #[derive(Clone,Debug)]
 pub enum StandardActionType {

@@ -110,7 +110,8 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
 async fn metadata(ctx: &Context, msg: &Message) -> CommandResult {
     let r = ctx.data.read().await;
     let manager = r.get::<PlayerObjectKey>().unwrap().lock().await;
-    manager.get_metadata().await;
+    let meta = manager.get_metadata().await;
+    println!("{:?}",meta.unwrap());
     Ok(())
 }
 

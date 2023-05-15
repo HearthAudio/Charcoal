@@ -5,7 +5,7 @@ use log::{debug, error};
 use nanoid::nanoid;
 use crate::{InfrastructureType, InternalIPC, InternalIPCType, PlayerObject, StandardActionType};
 use async_trait::async_trait;
-use crate::connector::{boilerplate_parse_result, send_message};
+use crate::connector::{ boilerplate_parse_result, send_message};
 
 #[async_trait]
 pub trait ChannelManager {
@@ -27,7 +27,8 @@ impl ChannelManager for PlayerObject {
         boilerplate_parse_result(|message| {
             match message {
                 Message::ErrorReport(error_report) => {
-                    error!("{} - Error with Job ID: {} and Request ID: {}",error_report.error,error_report.job_id,error_report.request_id)
+                    error!("{} - Error with Job ID: {} and Request ID: {}",error_report.error,error_report.job_id,error_report.request_id);
+                    return false;
                 },
                 Message::ExternalQueueJobResponse(res) => {
                     self.worker_id = Some(res.worker_id);
@@ -51,5 +52,6 @@ impl ChannelManager for PlayerObject {
             seek_position: None,
             loop_times: None,
         }),"communication",&mut charcoal.producer);
+        
     }
 }

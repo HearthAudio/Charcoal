@@ -33,6 +33,7 @@ impl TrackManager for PlayerObject {
             seek_position: None,
             loop_times: None,
         }),"communication",&mut charcoal.producer);
+        
     }
     async fn force_stop_loop(&self) {
         let mut charcoal = self.charcoal.lock().await;
@@ -46,6 +47,7 @@ impl TrackManager for PlayerObject {
             seek_position: None,
             loop_times: None,
         }),"communication",&mut charcoal.producer);
+        
     }
     async fn loop_indefinitely(&self) {
         let mut charcoal = self.charcoal.lock().await;
@@ -59,6 +61,7 @@ impl TrackManager for PlayerObject {
             seek_position: None,
             loop_times: None,
         }),"communication",&mut charcoal.producer);
+        
     }
     async fn loop_x_times(&self,times: usize) {
         let mut charcoal = self.charcoal.lock().await;
@@ -72,6 +75,7 @@ impl TrackManager for PlayerObject {
             seek_position: None,
             loop_times: Some(times.clone()),
         }),"communication",&mut charcoal.producer);
+        
     }
     async fn seek_to_position(&self,position: Duration) {
         let mut charcoal = self.charcoal.lock().await;
@@ -85,6 +89,7 @@ impl TrackManager for PlayerObject {
             seek_position: Some(position.as_millis() as u64),
             loop_times: None,
         }),"communication",&mut charcoal.producer);
+        
     }
     async fn resume_playback(&self) {
         let mut charcoal = self.charcoal.lock().await;
@@ -98,6 +103,7 @@ impl TrackManager for PlayerObject {
             seek_position: None,
             loop_times: None,
         }),"communication",&mut charcoal.producer);
+        
     }
     async fn pause_playback(&self) {
         let mut charcoal = self.charcoal.lock().await;
@@ -111,6 +117,7 @@ impl TrackManager for PlayerObject {
             seek_position: None,
             loop_times: None,
         }),"communication",&mut charcoal.producer);
+        
     }
     async fn get_metadata(&self) -> Option<Metadata> {
         let mut charcoal = self.charcoal.lock().await;
@@ -129,7 +136,8 @@ impl TrackManager for PlayerObject {
         boilerplate_parse_result(|message| {
             match message {
                 Message::ErrorReport(error_report) => {
-                    error!("{} - Error with Job ID: {} and Request ID: {}",error_report.error,error_report.job_id,error_report.request_id)
+                    error!("{} - Error with Job ID: {} and Request ID: {}",error_report.error,error_report.job_id,error_report.request_id);
+                    return false;
                 },
                 Message::ExternalMetadataResult(metadata) => {
                     result = Some(metadata);

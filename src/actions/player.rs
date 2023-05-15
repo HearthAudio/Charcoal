@@ -5,7 +5,7 @@ use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCAc
 use log::error;
 use nanoid::nanoid;
 use crate::{PlayerObject, InternalIPC, InternalIPCType};
-use crate::connector::send_message;
+use crate::connector::{send_message};
 
 #[async_trait]
 pub trait Player {
@@ -27,6 +27,7 @@ impl Player for PlayerObject {
             seek_position: None,
             loop_times: None,
         }),"communication",&mut charcoal.producer);
+        
     }
     async fn play_from_youtube(&mut self,url: String) {
         let mut charcoal = self.charcoal.lock().await;
@@ -40,5 +41,6 @@ impl Player for PlayerObject {
             seek_position: None,
             loop_times: None,
         }),"communication",&mut charcoal.producer);
+        
     }
 }
