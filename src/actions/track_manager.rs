@@ -146,7 +146,7 @@ impl TrackManager for PlayerObject {
                 _ => {}
             }
             return true;
-        },&mut self.charcoal.lock().await.consumer);
+        },&mut charcoal.consumer);
         return result;
     }
 }

@@ -136,8 +136,7 @@ T: FnMut(Message) -> bool
                 let parsed_message : Result<Message,serde_json::Error> = serde_json::from_slice(&m.value);
                 match parsed_message {
                     Ok(message) => {
-                        let end = message_parser(message);
-                        check_result = end;
+                        check_result = message_parser(message);
                     },
                     Err(e) => error!("{} - Failed to parse message",e),
                 }

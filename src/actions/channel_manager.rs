@@ -38,7 +38,7 @@ impl ChannelManager for PlayerObject {
                 _ => {}
             }
             return true;
-        },&mut self.charcoal.lock().await.consumer)
+        },&mut charcoal.consumer);
     }
     async fn exit_channel(&self) {
         let mut charcoal = self.charcoal.lock().await;
