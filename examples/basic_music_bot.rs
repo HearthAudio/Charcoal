@@ -98,7 +98,7 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
     let mut r = ctx.data.write().await;
     let manager = r.get::<CharcoalKey>().unwrap();
 
-    let mut handler = PlayerObject::new(manager.clone()).await;
+    let mut handler = PlayerObject::new(manager,guild_id.to_string()).await;
     handler.join_channel(guild_id.to_string(),connect_to.to_string()).await;
 
     r.insert::<PlayerObjectKey>(Arc::new(Mutex::new(handler)));
@@ -109,9 +109,9 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
 #[only_in(guilds)]
 async fn metadata(ctx: &Context, msg: &Message) -> CommandResult {
     let r = ctx.data.read().await;
-    let manager = r.get::<PlayerObjectKey>().unwrap().lock().await;
+    let mut manager = r.get::<PlayerObjectKey>().unwrap().lock().await;
     let meta = manager.get_metadata().await;
-    println!("{:?}",meta.unwrap());
+    println!("{:?}",meta);
     Ok(())
 }
 

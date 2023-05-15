@@ -1,10 +1,12 @@
-
+use std::sync::Arc;
 use std::time::Duration;
 use hearth_interconnect::messages::{ExternalQueueJobResponse, Message, Metadata};
 use kafka::consumer::Consumer;
 use kafka::producer::Producer;
 use log::error;
 use tokio::sync::broadcast::{Receiver, Sender};
+use tokio::sync::Mutex;
+use tokio::time::sleep;
 use crate::background::actions::channel_manager::{exit_channel, join_channel};
 use crate::background::actions::player::{play_from_http, play_from_youtube};
 use crate::background::actions::track_manager::{force_stop_loop, get_metadata, loop_indefinitely, loop_x_times, pause_playback, resume_playback, seek_to_position, set_playback_volume};
@@ -107,7 +109,9 @@ pub enum IPCData {
     ExitChannel(ExitChannel),
 
     InfrastructureMetadataResult(Metadata),
-    InfrastructureJoinResult(ExternalQueueJobResponse)
+    InfrastructureJoinResult(ExternalQueueJobResponse),
+    InfrastructureRegisterNewRXPair(String), // String here is GuildID
+    InfrastructureRegisterNewRXPairResult(Arc<Mutex<Receiver<IPCData>>>)
 }
 
 pub async fn processor(tx: Sender<IPCData>, mut rx: Receiver<IPCData>,brokers: Vec<String>) {
@@ -155,13 +159,17 @@ pub async fn processor(tx: Sender<IPCData>, mut rx: Receiver<IPCData>,brokers: V
                         play_from_youtube(&mut producer,d.guild_id,d.job_id,d.url,d.worker_id).await;
                     }
                     IPCData::JoinChannel(d) => {
-                        join_channel(d.channel_id,d.guild_id,&mut producer).await;
+                        join_channel(d.guild_id,d.channel_id,&mut producer).await;
                     }
                     IPCData::ExitChannel(d) => {
                         exit_channel(d.guild_id,d.job_id,&mut producer,d.worker_id).await;
                     }
                     IPCData::InfrastructureMetadataResult(_) => {}
-                    IPCData::InfrastructureJoinResult(_) => {}
+                    IPCData::InfrastructureJoinResult(_) => {},
+                    IPCData::InfrastructureRegisterNewRXPair(r) => {
+                        tx.send(IPCData::InfrastructureRegisterNewRXPairResult(Arc::new(Mutex::new(tx.subscribe())))).unwrap();
+                    },
+                    IPCData::InfrastructureRegisterNewRXPairResult(_) => {}
                 }
             },
             Err(_e) => {}

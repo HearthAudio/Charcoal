@@ -18,7 +18,7 @@ pub trait TrackManager {
     async fn seek_to_position(&self,position: Duration);
     async fn resume_playback(&self);
     async fn pause_playback(&self);
-    async fn get_metadata(&self) -> Metadata;
+    async fn get_metadata(&mut self) -> Metadata;
 }
 #[async_trait]
 impl TrackManager for PlayerObject {
@@ -81,7 +81,7 @@ impl TrackManager for PlayerObject {
         })).unwrap();
         
     }
-    async fn get_metadata(&self) -> Metadata {
+    async fn get_metadata(&mut self) -> Metadata {
         self.tx.send(IPCData::GetMetadata(GetMetadata {
             guild_id: self.guild_id.clone().unwrap(),
             job_id: self.job_id.clone().unwrap(),
@@ -89,7 +89,7 @@ impl TrackManager for PlayerObject {
         })).unwrap();
         //
         let mut res : Option<Metadata> = None;
-        while let Ok(msg) = self.tx.subscribe().recv().await {
+        while let Ok(msg) = self.rx.lock().await.recv().await {
             match msg {
                 IPCData::InfrastructureMetadataResult(r) => {
                     res = Some(r)

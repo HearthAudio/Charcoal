@@ -22,7 +22,9 @@ impl ChannelManager for PlayerObject {
         })).unwrap();
         let mut res : Option<ExternalQueueJobResponse> = None;
         //TODO: Timeout
-        while let Ok(msg) = self.tx.subscribe().recv().await {
+        println!("STL");
+        while let Ok(msg) = self.rx.lock().await.recv().await {
+            println!("JOIN WATCH: {:?}",msg);
             match msg {
                 IPCData::InfrastructureJoinResult(r) => {
                     res = Some(r)
@@ -30,6 +32,7 @@ impl ChannelManager for PlayerObject {
                 _ => {}
             }
         }
+        println!("EXIT");
         return res.unwrap();
     }
     async fn exit_channel(&self) {
