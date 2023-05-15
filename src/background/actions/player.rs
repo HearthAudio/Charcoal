@@ -1,10 +1,10 @@
-use hearth_interconnect::messages::{JobRequest, Message};
+use hearth_interconnect::messages::{Message};
 use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
-use kafka::consumer::Consumer;
+
 use kafka::producer::Producer;
-use log::error;
+
 use nanoid::nanoid;
-use snafu::Whatever;
+
 use crate::connector::{send_message};
 
 pub async fn play_from_http(producer: &mut Producer, guild_id: String,job_id: String, url: String,worker_id: String) {

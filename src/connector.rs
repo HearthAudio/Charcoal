@@ -2,20 +2,20 @@
 
 
 
-use std::collections::HashMap;
+
 use std::process;
 
 use std::time::Duration;
 use hearth_interconnect::messages::{Message};
 use kafka;
-use kafka::consumer::Consumer;
+
 use kafka::producer::{Producer, Record, RequiredAcks};
 use log::{debug, error, info, warn};
-use nanoid::nanoid;
+
 use openssl;
-use snafu::Whatever;
-use tokio::time::timeout;
-use crate::actions::channel_manager::ChannelManager;
+
+
+
 use self::kafka::client::{FetchOffset, KafkaClient, SecurityConfig};
 use self::openssl::ssl::{SslConnector, SslFiletype, SslMethod, SslVerifyMode};
 

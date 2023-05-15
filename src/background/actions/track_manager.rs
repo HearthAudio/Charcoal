@@ -1,11 +1,11 @@
 use std::time::Duration;
-use hearth_interconnect::messages::{JobRequest, Message, Metadata};
+use hearth_interconnect::messages::{Message};
 use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
-use kafka::consumer::Consumer;
+
 use kafka::producer::Producer;
-use log::error;
+
 use nanoid::nanoid;
-use snafu::Whatever;
+
 use crate::connector::{send_message};
 
 pub async fn set_playback_volume(producer: &mut Producer,guild_id: String,job_id: String,playback_volume: f32,worker_id: String) {

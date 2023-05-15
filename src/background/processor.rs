@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+
 use std::time::Duration;
 use hearth_interconnect::messages::{ExternalQueueJobResponse, Message, Metadata};
 use kafka::consumer::Consumer;
@@ -164,7 +164,7 @@ pub async fn processor(tx: Sender<IPCData>, mut rx: Receiver<IPCData>,brokers: V
                     IPCData::InfrastructureJoinResult(_) => {}
                 }
             },
-            Err(e) => {}
+            Err(_e) => {}
         }
         // Runner
         let mss = consumer.poll().unwrap();
