@@ -1,7 +1,8 @@
 use std::sync::{Arc};
 use std::thread::sleep;
 use std::time::Duration;
-use tokio::sync::broadcast::{Sender,Receiver};
+use ipc_rpc::{ConnectionKey, IpcRpcClient};
+use nanoid::nanoid;
 use tokio::sync::{broadcast, Mutex};
 use crate::background::init_background;
 use crate::background::processor::IPCData;
@@ -57,15 +58,24 @@ impl PlayerObject {
 }
 
 pub struct Charcoal {
-    tx: Sender<IPCData>,
-    rx: Receiver<IPCData>
+    client: IpcRpcClient<IPCData>
 }
 
-pub async fn init_charcoal(broker: String) -> Charcoal  {
+async fn message_handler(_message: IPCData) -> Option<IPCData> {
+    // The client doesn't respond to spontaneous messages, it only sends spontaneous messages.
+    None
+}
+
+pub async fn init_charcoal(broker: String) -> Arc<Mutex<Charcoal>>  {
     let brokers = vec![broker];
-    let (tx, rx) = broadcast::channel(16);
-    let mut second_rx = tx.subscribe();
-    let rxx = tx.subscribe();
+
+    let key = format!("{}-CHARCOAL",nanoid!());
+
+    let client =
+        IpcRpcClient::initialize_client(ConnectionKey::try_from(key).unwrap(), message_handler)
+            .await
+            .unwrap();
+
     init_background(tx.clone(),rxx,brokers).await;
 
     // sleep(Duration::from_secs(1));
@@ -75,8 +85,7 @@ pub async fn init_charcoal(broker: String) -> Charcoal  {
     // }
 
 
-    return Charcoal {
-        tx: tx.clone(),
-        rx: second_rx
-    };
+    return Arc::new(Mutex::new(Charcoal {
+        client
+    }));
 }

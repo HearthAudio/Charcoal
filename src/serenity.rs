@@ -12,7 +12,7 @@ use tokio::sync::Mutex;
 pub struct CharcoalKey;
 
 impl TypeMapKey for CharcoalKey {
-    type Value = Charcoal;
+    type Value = Arc<Mutex<Charcoal>>;
 }
 
 
