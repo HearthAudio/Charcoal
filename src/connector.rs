@@ -2,7 +2,7 @@
 
 
 
-use std::collections::HashMap;
+
 use std::process;
 
 use std::time::Duration;
@@ -11,13 +11,13 @@ use kafka;
 use kafka::consumer::Consumer;
 use kafka::producer::{Producer, Record, RequiredAcks};
 use log::{debug, error, info, warn};
-use nanoid::nanoid;
+
 use openssl;
-use snafu::Whatever;
-use tokio::time::timeout;
-use crate::{InfrastructureType, InternalIPC, InternalIPCType, PlayerObject, StandardActionType};
-use crate::actions::channel_manager::ChannelManager;
-use crate::constants::ERROR_CHECK_TIMELIMIT;
+
+
+
+
+
 use self::kafka::client::{FetchOffset, KafkaClient, SecurityConfig};
 use self::openssl::ssl::{SslConnector, SslFiletype, SslMethod, SslVerifyMode};
 
@@ -121,7 +121,7 @@ pub fn send_message(message: &Message, topic: &str, producer: &mut Producer) {
 }
 
 
-pub fn boilerplate_parse_result<T>(mut message_parser: T, mut consumer: &mut Consumer) where
+pub fn boilerplate_parse_result<T>(mut message_parser: T, consumer: &mut Consumer) where
 T: FnMut(Message) -> bool
 {
     let mut check_result = true;

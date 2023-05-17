@@ -1,9 +1,9 @@
 use std::env;
-use std::sync::Arc;
+
 
 // Import the `Context` to handle commands.
 use serenity::client::Context;
-use charcoal::serenity::{CharcoalKey, ClientBuilder, SerenityInit};
+use charcoal::serenity::{CharcoalKey, SerenityInit};
 
 use serenity::{
     async_trait,
@@ -19,11 +19,11 @@ use serenity::{
     prelude::GatewayIntents,
     Result as SerenityResult,
 };
-use serenity::prelude::TypeMapKey;
-use tokio::sync::Mutex;
+
+
 use charcoal::actions::channel_manager::ChannelManager;
 use charcoal::actions::player::Player;
-use charcoal::{Charcoal, PlayerObject};
+use charcoal::{PlayerObject};
 use charcoal::actions::track_manager::TrackManager;
 
 struct Handler;
@@ -167,7 +167,7 @@ async fn play(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     let guild = msg.guild(&ctx.cache).unwrap();
     let guild_id = guild.id;
     println!("GET: {}",guild_id.to_string());
-    let mut manager = r.get::<CharcoalKey>();
+    let manager = r.get::<CharcoalKey>();
     let mut mx = manager.unwrap().lock().await;
     let handler =  mx.players.get_mut(&guild_id.to_string()).unwrap();
     println!("GOT MANAGER");

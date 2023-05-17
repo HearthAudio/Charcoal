@@ -1,25 +1,24 @@
 use std::collections::HashMap;
-use std::ops::Deref;
+
 use std::sync::{Arc};
-use std::thread::sleep;
-use std::time::Duration;
-use ::serenity::Client;
-use async_trait::async_trait;
-use futures::SinkExt;
+
+
+
+
+
 use hearth_interconnect::messages::JobRequest;
 use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
 use kafka::consumer::Consumer;
 use kafka::producer::Producer;
 use lazy_static::lazy_static;
-use log::error;
-use nanoid::nanoid;
+
+
 use tokio::sync::Mutex;
 use crate::connector::{initialize_client, initialize_producer};
-use crate::logger::setup_logger;
+
 
 mod connector;
 pub mod actions;
-mod logger;
 pub mod serenity;
 mod constants;
 
@@ -49,17 +48,6 @@ pub enum InternalIPCType {
 pub struct JobResult {
     pub job_id: String,
     pub worker_id: String
-}
-
-#[derive(Clone,Debug)]
-pub struct InternalIPC {
-    action: InternalIPCType,
-    dwc: Option<DirectWorkerCommunication>,
-    worker_id: Option<String>,
-    job_id: Option<String>,
-    queue_job_request: Option<JobRequest>,
-    job_result: Option<JobResult>,
-    request_id: Option<String>
 }
 
 pub struct PlayerObject {
@@ -94,7 +82,7 @@ pub async fn init_charcoal(broker: String) -> Arc<Mutex<Charcoal>>  {
     let brokers = vec![broker];
     //TODO: Sort this mess out
     let producer : Producer = initialize_producer(initialize_client(&brokers));
-    let mut consumer = Consumer::from_client(initialize_client(&brokers))
+    let consumer = Consumer::from_client(initialize_client(&brokers))
 
     .with_topic(String::from("communication"))
     .create()

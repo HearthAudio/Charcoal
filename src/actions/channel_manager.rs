@@ -1,9 +1,9 @@
-use std::sync::Arc;
+
 use hearth_interconnect::messages::{JobRequest, Message};
 use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
-use log::{debug, error};
+use log::{error};
 use nanoid::nanoid;
-use crate::{CONSUMER, InfrastructureType, InternalIPC, InternalIPCType, PlayerObject, PRODUCER, StandardActionType};
+use crate::{CONSUMER, PlayerObject, PRODUCER};
 use async_trait::async_trait;
 use crate::connector::{ boilerplate_parse_result, send_message};
 
@@ -51,7 +51,7 @@ impl ChannelManager for PlayerObject {
         let p = px.as_mut();
 
         let mut cx = CONSUMER.lock().await;
-        let c = cx.as_mut();
+        let _c = cx.as_mut();
 
         send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
