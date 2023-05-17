@@ -1,7 +1,12 @@
 
 use std::time::Duration;
 use async_trait::async_trait;
-use hearth_interconnect::messages::{Metadata};
+use hearth_interconnect::messages::{Message, Metadata};
+use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
+use log::error;
+use nanoid::nanoid;
+use crate::{CONSUMER, InternalIPC, InternalIPCType, PlayerObject, PRODUCER};
+use crate::connector::{boilerplate_parse_result, send_message};
 
 
 
@@ -23,80 +28,173 @@ pub trait TrackManager {
 #[async_trait]
 impl TrackManager for PlayerObject {
     async fn set_playback_volume(&self,playback_volume: f32) {
-        self.tx.send(IPCData::SetPlaybackVolume(SetPlaybackVolume {
-            volume: playback_volume,
-            guild_id: self.guild_id.clone().unwrap(),
+        let mut px = PRODUCER.lock().await;
+        let p = px.as_mut();
+
+        send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
+            action_type: DWCActionType::SetPlaybackVolume,
+            play_audio_url: None,
+            guild_id: Some(self.guild_id.clone().unwrap()),
+            request_id: None,
+            new_volume: Some(playback_volume),
+            seek_position: None,
+            loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
-        })).unwrap();
+            voice_channel_id: None
+        }),"communication",&mut *p.unwrap());
         
     }
     async fn force_stop_loop(&self) {
-        self.tx.send(IPCData::ForceStopLoop(ForceStopLoop {
-            guild_id: self.guild_id.clone().unwrap(),
+
+        let mut px = PRODUCER.lock().await;
+        let p = px.as_mut();
+
+        send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
+            action_type: DWCActionType::ForceStopLoop,
+            play_audio_url: None,
+            guild_id: Some(self.guild_id.clone().unwrap()),
+            request_id: None,
+            new_volume: None,
+            seek_position: None,
+            loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
-        })).unwrap();
+            voice_channel_id: None
+        }),"communication",&mut *p.unwrap());
         
     }
     async fn loop_indefinitely(&self) {
-        self.tx.send(IPCData::LoopIndefinitely(LoopIndefinitely {
-            guild_id: self.guild_id.clone().unwrap(),
+
+        let mut px = PRODUCER.lock().await;
+        let p = px.as_mut();
+
+        send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
+            action_type: DWCActionType::LoopForever,
+            play_audio_url: None,
+            guild_id: Some(self.guild_id.clone().unwrap()),
+            request_id: None,
+            new_volume: None,
+            seek_position: None,
+            loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
-        })).unwrap();
+            voice_channel_id: None
+        }),"communication",&mut *p.unwrap());
         
     }
     async fn loop_x_times(&self,times: usize) {
-        self.tx.send(IPCData::LoopXTimes(LoopXTimes {
-            times: times,
-            guild_id: self.guild_id.clone().unwrap(),
+
+        let mut px = PRODUCER.lock().await;
+        let p = px.as_mut();
+
+        send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
+            action_type: DWCActionType::LoopXTimes,
+            play_audio_url: None,
+            guild_id: Some(self.guild_id.clone().unwrap()),
+            request_id: None,
+            new_volume: None,
+            seek_position: None,
+            loop_times: Some(times.clone()),
             worker_id: self.worker_id.clone().unwrap(),
-        })).unwrap();
+            voice_channel_id: None
+        }),"communication",&mut *p.unwrap());
         
     }
     async fn seek_to_position(&self,position: Duration) {
-        self.tx.send(IPCData::SeekToPosition(SeekToPosition {
-            pos: position,
-            guild_id: self.guild_id.clone().unwrap(),
+
+        let mut px = PRODUCER.lock().await;
+        let p = px.as_mut();
+
+        send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
+            action_type: DWCActionType::SeekToPosition,
+            play_audio_url: None,
+            guild_id: Some(self.guild_id.clone().unwrap()),
+            request_id: None,
+            new_volume: None,
+            seek_position: Some(position.as_millis() as u64),
+            loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
-        })).unwrap();
+            voice_channel_id: None
+        }),"communication",&mut *p.unwrap());
         
     }
     async fn resume_playback(&self) {
-        self.tx.send(IPCData::ResumePlayback(ResumePlayback {
-            guild_id: self.guild_id.clone().unwrap(),
+
+        let mut px = PRODUCER.lock().await;
+        let p = px.as_mut();
+
+        send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
+            action_type: DWCActionType::ResumePlayback,
+            play_audio_url: None,
+            guild_id: Some(self.guild_id.clone().unwrap()),
+            request_id: None,
+            new_volume: None,
+            seek_position: None,
+            loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
-        })).unwrap();
+            voice_channel_id: None
+        }),"communication",&mut *p.unwrap());
         
     }
     async fn pause_playback(&self) {
-        self.tx.send(IPCData::PausePlayback(PausePlayback {
-            guild_id: self.guild_id.clone().unwrap(),
+
+        let mut px = PRODUCER.lock().await;
+        let p = px.as_mut();
+
+        send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
+            action_type: DWCActionType::PausePlayback,
+            play_audio_url: None,
+            guild_id: Some(self.guild_id.clone().unwrap()),
+            request_id: None,
+            new_volume: None,
+            seek_position: None,
+            loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
-        })).unwrap();
+            voice_channel_id: None
+        }),"communication",&mut *p.unwrap());
         
     }
-    async fn get_metadata(&mut self) -> Metadata {
-        self.tx.send(IPCData::GetMetadata(GetMetadata {
-            guild_id: self.guild_id.clone().unwrap(),
+    async fn get_metadata(&self) -> Option<Metadata> {
+
+        let mut px = PRODUCER.lock().await;
+        let p = px.as_mut();
+
+        let mut cx = CONSUMER.lock().await;
+        let c = cx.as_mut();
+
+        send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
+            action_type: DWCActionType::GetMetaData,
+            play_audio_url: None,
+            guild_id: Some(self.guild_id.clone().unwrap()),
+            request_id: Some(nanoid!()),
+            new_volume: None,
+            seek_position: None,
+            loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
-        })).unwrap();
-        //
-        let mut res : Option<Metadata> = None;
-        while let Ok(msg) = self.rx.lock().await.recv().await {
-            match msg {
-                IPCData::InfrastructureMetadataResult(r) => {
-                    res = Some(r)
+            voice_channel_id: None
+        }),"communication",&mut *p.unwrap());
+        // Parse result
+        let mut result: Option<Metadata> = None;
+        boilerplate_parse_result(|message| {
+            match message {
+                Message::ErrorReport(error_report) => {
+                    error!("{} - Error with Job ID: {} and Request ID: {}",error_report.error,error_report.job_id,error_report.request_id);
+                    return false;
+                },
+                Message::ExternalMetadataResult(metadata) => {
+                    result = Some(metadata);
+                    return false;
                 }
                 _ => {}
             }
-        }
-        return res.unwrap();
+            return true;
+        },&mut *c.unwrap());
+        return result;
     }
 }
