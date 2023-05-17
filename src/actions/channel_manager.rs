@@ -8,6 +8,7 @@ use async_trait::async_trait;
 use crate::connector::{ boilerplate_parse_result, send_message};
 
 #[async_trait]
+/// Provides basic functionality to create a job on the hearth server, join a channel, and exit a channel
 pub trait ChannelManager {
     async fn create_job(&mut self);
     async fn join_channel(&mut self, voice_channel_id: String,guild_id: String);

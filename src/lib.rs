@@ -1,9 +1,8 @@
+//! Charcoal is a client-library for Hearth that makes it easy to use Hearth with Rust.
+//! See Examples in the Github repo in the sub-folder examples/
 use std::collections::HashMap;
 
 use std::sync::{Arc};
-
-
-
 
 
 use hearth_interconnect::messages::JobRequest;
@@ -23,33 +22,28 @@ pub mod serenity;
 mod constants;
 
 lazy_static! {
-    pub static ref PRODUCER: Mutex<Option<Producer>> = Mutex::new(None);
-    pub static ref CONSUMER: Mutex<Option<Consumer>> = Mutex::new(None);
+    pub(crate) static ref PRODUCER: Mutex<Option<Producer>> = Mutex::new(None);
+    pub(crate) static ref CONSUMER: Mutex<Option<Consumer>> = Mutex::new(None);
 }
 
 #[derive(Clone,Debug)]
-pub enum StandardActionType {
+pub(crate) enum StandardActionType {
     JoinChannel
 }
 
 #[derive(Clone,Debug)]
-pub enum InfrastructureType {
+pub(crate) enum InfrastructureType {
     JoinChannelResult
 }
 
 #[derive(Clone,Debug)]
-pub enum InternalIPCType {
+pub(crate) enum InternalIPCType {
     DWCAction(DWCActionType),
     StandardAction(StandardActionType),
     Infrastructure(InfrastructureType)
 }
 
-#[derive(Clone,Debug)]
-pub struct JobResult {
-    pub job_id: String,
-    pub worker_id: String
-}
-
+/// Represents an instance in a voice channel
 pub struct PlayerObject {
     worker_id: Option<String>,
     job_id:  Option<String>,
@@ -58,6 +52,7 @@ pub struct PlayerObject {
 }
 
 impl PlayerObject {
+    /// Creates a new Player Object that can then be joined to channel and used to playback audio
     pub async fn new() -> Self {
         PlayerObject {
             worker_id: None,
@@ -68,6 +63,7 @@ impl PlayerObject {
     }
 }
 
+/// Stores Charcoal instance
 pub struct Charcoal {
     pub players: HashMap<String,PlayerObject> // Guild ID to PlayerObject
 }
@@ -78,6 +74,7 @@ impl Charcoal {
     }
 }
 
+/// Initializes Charcoal Instance
 pub async fn init_charcoal(broker: String) -> Arc<Mutex<Charcoal>>  {
     let brokers = vec![broker];
     //TODO: Sort this mess out

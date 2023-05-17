@@ -18,6 +18,7 @@ impl TypeMapKey for CharcoalKey {
 
 pub trait SerenityInit {
     #[must_use]
+    /// Initializes charcoal and registers it in the Serenity type-map
     fn register_charcoal(self,broker: String) -> Self;
 }
 

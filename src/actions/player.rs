@@ -8,6 +8,7 @@ use crate::{PlayerObject, PRODUCER};
 use crate::connector::{send_message};
 
 #[async_trait]
+/// Allows you to start playback using an HttpRequest or from a Youtube URL
 pub trait Player {
     async fn play_from_http(&mut self,url: String);
     async fn play_from_youtube(&mut self,url: String);

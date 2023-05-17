@@ -12,3 +12,8 @@
 <p align="center">
 Charcoal is a client library for Hearth: Hearth is a LavaLink alternative with improved performance.
 </p>
+<h3 align="center">Getting Started</h3>
+<hr/>
+<p align="center">
+Ready to start using Charcoal? See the Getting Started guide <a href="https://github.com/Hearth-Industries/Charcoal/blob/master/GETTING_STARTED.md">here</a>. Before using Charcoal you are probably going to want to setup your own Hearth server. See how todo that <a href="https://github.com/Hearth-Industries/Hearth/blob/master/GETTING_STARTED.md">here</a>
+</p>

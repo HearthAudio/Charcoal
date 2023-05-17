@@ -21,16 +21,6 @@ use openssl;
 use self::kafka::client::{FetchOffset, KafkaClient, SecurityConfig};
 use self::openssl::ssl::{SslConnector, SslFiletype, SslMethod, SslVerifyMode};
 
-//
-// pub fn init_connector(broker: String,sender: Sender<InternalIPC>,receiver: Receiver<InternalIPC>) {
-//
-//     let brokers = vec![broker];
-//
-//     let producer : Producer = initialize_producer(initialize_client(&brokers));
-//
-//     initialize_consume(brokers,producer,sender,receiver);
-// }
-
 pub fn initialize_client(brokers: &Vec<String>) -> KafkaClient {
     // ~ OpenSSL offers a variety of complex configurations. Here is an example:
     let mut builder = SslConnector::builder(SslMethod::tls()).unwrap();

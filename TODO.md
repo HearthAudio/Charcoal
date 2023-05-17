@@ -1,1 +1,3 @@
 - [ ] Revise DWC to use enum
+- [ ] Cleanup Example
+- [ ] Create Advanced Example with full command set usage

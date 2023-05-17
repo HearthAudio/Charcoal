@@ -9,6 +9,7 @@ use crate::{CONSUMER, PlayerObject, PRODUCER};
 use crate::connector::{boilerplate_parse_result, send_message};
 
 #[async_trait]
+/// Provides functionality that can be used once you start playing a track such as: looping, pausing, and resuming.
 pub trait TrackManager {
     async fn set_playback_volume(&self,playback_volume: f32);
     async fn force_stop_loop(&self);
