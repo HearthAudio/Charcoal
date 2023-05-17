@@ -1,1 +1,0 @@
-pub const ERROR_CHECK_TIMELIMIT : u64 = 3; // Timelimit in seconds

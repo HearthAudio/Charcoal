@@ -1,8 +1,8 @@
 //! Provides ClientBuilder extension for super easy use with serenity
 use std::sync::{Arc};
 use futures::executor;
-use kafka::producer::Producer;
-use serenity::prelude::{TypeMap, TypeMapKey};
+
+use serenity::prelude::{TypeMapKey};
 use crate::{Charcoal, init_charcoal};
 // pub use serenity::client::ClientBuilder;
 use serenity::*;
