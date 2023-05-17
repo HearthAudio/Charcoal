@@ -1,2 +1,1 @@
-- [ ] Make PlayerObject enum with States: `Ready`, `Standby` and `Playing` to only allow certain functions in certain states. Ready = Joined Channel. Standby = Job Created. Playing = Playing track
 - [ ] Revise DWC to use enum
