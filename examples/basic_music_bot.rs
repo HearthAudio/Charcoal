@@ -118,7 +118,7 @@ async fn metadata(ctx: &Context, msg: &Message) -> CommandResult {
     let manager = manager.get_player(&guild_id.to_string());
 
     let meta = manager.get_metadata().await;
-    println!("{:?}",meta);
+    println!("{:?}",meta.unwrap());
     Ok(())
 }
 

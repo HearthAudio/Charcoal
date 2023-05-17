@@ -13,14 +13,15 @@ use kafka::producer::Producer;
 use lazy_static::lazy_static;
 use log::error;
 use nanoid::nanoid;
-use tokio::sync::{broadcast, Mutex};
-use crate::background::init_background;
-use crate::background::processor::IPCData;
+use tokio::sync::Mutex;
+use crate::connector::{initialize_client, initialize_producer};
+use crate::logger::setup_logger;
 
 mod connector;
 pub mod actions;
+mod logger;
 pub mod serenity;
-mod background;
+mod constants;
 
 lazy_static! {
     pub static ref PRODUCER: Mutex<Option<Producer>> = Mutex::new(None);
@@ -28,9 +29,37 @@ lazy_static! {
 }
 
 #[derive(Clone,Debug)]
+pub enum StandardActionType {
+    JoinChannel
+}
+
+#[derive(Clone,Debug)]
+pub enum InfrastructureType {
+    JoinChannelResult
+}
+
+#[derive(Clone,Debug)]
+pub enum InternalIPCType {
+    DWCAction(DWCActionType),
+    StandardAction(StandardActionType),
+    Infrastructure(InfrastructureType)
+}
+
+#[derive(Clone,Debug)]
 pub struct JobResult {
     pub job_id: String,
     pub worker_id: String
+}
+
+#[derive(Clone,Debug)]
+pub struct InternalIPC {
+    action: InternalIPCType,
+    dwc: Option<DirectWorkerCommunication>,
+    worker_id: Option<String>,
+    job_id: Option<String>,
+    queue_job_request: Option<JobRequest>,
+    job_result: Option<JobResult>,
+    request_id: Option<String>
 }
 
 pub struct PlayerObject {
@@ -45,7 +74,7 @@ impl PlayerObject {
         PlayerObject {
             worker_id: None,
             job_id: None,
-            guild_id: Some(guild_id.clone()),
+            guild_id: None,
             channel_id: None,
         }
     }
@@ -63,6 +92,9 @@ impl Charcoal {
 
 pub async fn init_charcoal(broker: String) -> Arc<Mutex<Charcoal>>  {
     let brokers = vec![broker];
+    //TODO: Sort this mess out
+    let producer : Producer = initialize_producer(initialize_client(&brokers));
+    let mut consumer = Consumer::from_client(initialize_client(&brokers))
 
     .with_topic(String::from("communication"))
     .create()

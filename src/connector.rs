@@ -2,22 +2,34 @@
 
 
 
-
+use std::collections::HashMap;
 use std::process;
 
 use std::time::Duration;
 use hearth_interconnect::messages::{Message};
 use kafka;
-
+use kafka::consumer::Consumer;
 use kafka::producer::{Producer, Record, RequiredAcks};
 use log::{debug, error, info, warn};
-
+use nanoid::nanoid;
 use openssl;
-
-
-
+use snafu::Whatever;
+use tokio::time::timeout;
+use crate::{InfrastructureType, InternalIPC, InternalIPCType, PlayerObject, StandardActionType};
+use crate::actions::channel_manager::ChannelManager;
+use crate::constants::ERROR_CHECK_TIMELIMIT;
 use self::kafka::client::{FetchOffset, KafkaClient, SecurityConfig};
 use self::openssl::ssl::{SslConnector, SslFiletype, SslMethod, SslVerifyMode};
+
+//
+// pub fn init_connector(broker: String,sender: Sender<InternalIPC>,receiver: Receiver<InternalIPC>) {
+//
+//     let brokers = vec![broker];
+//
+//     let producer : Producer = initialize_producer(initialize_client(&brokers));
+//
+//     initialize_consume(brokers,producer,sender,receiver);
+// }
 
 pub fn initialize_client(brokers: &Vec<String>) -> KafkaClient {
     // ~ OpenSSL offers a variety of complex configurations. Here is an example:
@@ -106,4 +118,31 @@ pub fn send_message(message: &Message, topic: &str, producer: &mut Producer) {
     // Send message to worker
     let data = serde_json::to_string(message).unwrap();
     producer.send(&Record::from_value(topic, data)).unwrap();
+}
+
+
+pub fn boilerplate_parse_result<T>(mut message_parser: T, mut consumer: &mut Consumer) where
+T: FnMut(Message) -> bool
+{
+    let mut check_result = true;
+    while check_result {
+        let mss = consumer.poll().unwrap();
+        if mss.is_empty() {
+            debug!("No messages available right now.");
+        }
+
+        for ms in mss.iter() {
+            for m in ms.messages() {
+                let parsed_message : Result<Message,serde_json::Error> = serde_json::from_slice(&m.value);
+                match parsed_message {
+                    Ok(message) => {
+                        check_result = message_parser(message);
+                    },
+                    Err(e) => error!("{} - Failed to parse message",e),
+                }
+            }
+            let _ = consumer.consume_messageset(ms);
+        }
+        consumer.commit_consumed().unwrap();
+    }
 }

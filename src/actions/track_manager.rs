@@ -1,4 +1,4 @@
-
+use std::sync::Arc;
 use std::time::Duration;
 use async_trait::async_trait;
 use hearth_interconnect::messages::{Message, Metadata};
@@ -7,12 +7,6 @@ use log::error;
 use nanoid::nanoid;
 use crate::{CONSUMER, InternalIPC, InternalIPCType, PlayerObject, PRODUCER};
 use crate::connector::{boilerplate_parse_result, send_message};
-
-
-
-use crate::{PlayerObject};
-use crate::background::processor::{ForceStopLoop, GetMetadata, IPCData, LoopIndefinitely, LoopXTimes, PausePlayback, ResumePlayback, SeekToPosition, SetPlaybackVolume};
-
 
 #[async_trait]
 pub trait TrackManager {
@@ -23,7 +17,7 @@ pub trait TrackManager {
     async fn seek_to_position(&self,position: Duration);
     async fn resume_playback(&self);
     async fn pause_playback(&self);
-    async fn get_metadata(&mut self) -> Metadata;
+    async fn get_metadata(&self) -> Option<Metadata>;
 }
 #[async_trait]
 impl TrackManager for PlayerObject {

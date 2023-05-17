@@ -5,7 +5,7 @@ use log::{debug, error};
 use nanoid::nanoid;
 use crate::{CONSUMER, InfrastructureType, InternalIPC, InternalIPCType, PlayerObject, PRODUCER, StandardActionType};
 use async_trait::async_trait;
-use crate::background::processor::{ExitChannel, IPCData, JoinChannel};
+use crate::connector::{ boilerplate_parse_result, send_message};
 
 #[async_trait]
 pub trait ChannelManager {
