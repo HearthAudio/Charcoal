@@ -1,2 +1,5 @@
 /target
 output.log
+service.cert
+service.key
+ca.pem
