@@ -23,7 +23,7 @@ use serenity::{
 
 use charcoal::actions::channel_manager::ChannelManager;
 use charcoal::actions::player::Player;
-use charcoal::{PlayerObject};
+use charcoal::{CharcoalConfig, PlayerObject, SSLConfig};
 use charcoal::actions::track_manager::TrackManager;
 
 struct Handler;
@@ -58,7 +58,14 @@ async fn main() {
         .event_handler(Handler)
         .framework(framework)
         // Add a Kafka URL here to connect to the broker
-        .register_charcoal("kafka-185690f4-maxall4-aea3.aivencloud.com:23552".to_string())
+        .register_charcoal("kafka-185690f4-maxall4-aea3.aivencloud.com:23552".to_string(),CharcoalConfig {
+            ssl: Some(SSLConfig {
+                ssl_ca: "ca.pem".to_string(),
+                ssl_cert: "service.cert".to_string(),
+                ssl_key: "service.key".to_string()
+            }),
+            kafka_topic: "communication".to_string()
+        })
         .await
         .expect("Err creating client");
 
