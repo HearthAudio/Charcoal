@@ -13,43 +13,47 @@ use kafka::producer::{Producer, Record, RequiredAcks};
 use log::{debug, error, info, warn};
 
 use openssl;
-
-
-
+use crate::CharcoalConfig;
 
 
 use self::kafka::client::{FetchOffset, KafkaClient, SecurityConfig};
 use self::openssl::ssl::{SslConnector, SslFiletype, SslMethod, SslVerifyMode};
 
-pub fn initialize_client(brokers: &Vec<String>) -> KafkaClient {
-    // ~ OpenSSL offers a variety of complex configurations. Here is an example:
-    let mut builder = SslConnector::builder(SslMethod::tls()).unwrap();
-    builder.set_cipher_list("DEFAULT").unwrap();
-    builder.set_verify(SslVerifyMode::PEER);
+pub fn initialize_client(brokers: &Vec<String>,config: &CharcoalConfig) -> KafkaClient {
+    let mut client : KafkaClient;
 
-    let cert_file = "service.cert";
-    let cert_key = "service.key";
-    let ca_cert = "ca.pem";
+    if config.ssl.is_some() {
+        // ~ OpenSSL offers a variety of complex configurations. Here is an example:
+        let mut builder = SslConnector::builder(SslMethod::tls()).unwrap();
+        builder.set_cipher_list("DEFAULT").unwrap();
+        builder.set_verify(SslVerifyMode::PEER);
 
-    info!("loading cert-file={}, key-file={}", cert_file, cert_key);
+        let cert_file = config.ssl.unwrap().ssl_cert;
+        let cert_key = config.ssl.unwrap().ssl_cert;
+        let ca_cert = config.ssl.unwrap().ssl_ca;
 
-    builder
-        .set_certificate_file(cert_file, SslFiletype::PEM)
-        .unwrap();
-    builder
-        .set_private_key_file(cert_key, SslFiletype::PEM)
-        .unwrap();
-    builder.check_private_key().unwrap();
+        info!("loading cert-file={}, key-file={}", cert_file, cert_key);
 
-    builder.set_ca_file(ca_cert).unwrap();
+        builder
+            .set_certificate_file(cert_file, SslFiletype::PEM)
+            .unwrap();
+        builder
+            .set_private_key_file(cert_key, SslFiletype::PEM)
+            .unwrap();
+        builder.check_private_key().unwrap();
 
-    let connector = builder.build();
+        builder.set_ca_file(ca_cert).unwrap();
 
-    // ~ instantiate KafkaClient with the previous OpenSSL setup
-    let mut client = KafkaClient::new_secure(
-        brokers.to_owned(),
-        SecurityConfig::new(connector)
-    );
+        let connector = builder.build();
+
+        // ~ instantiate KafkaClient with the previous OpenSSL setup
+        client = KafkaClient::new_secure(
+            brokers.to_owned(),
+            SecurityConfig::new(connector)
+        );
+    } else {
+        client = KafkaClient::new(brokers.to_owned());
+    }
 
     // ~ communicate with the brokers
     match client.load_metadata_all() {

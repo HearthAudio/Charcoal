@@ -3,19 +3,12 @@
 use std::collections::HashMap;
 
 use std::sync::{Arc};
-
-
-use hearth_interconnect::messages::JobRequest;
-use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
+use hearth_interconnect::worker_communication::{DWCActionType};
 use kafka::consumer::Consumer;
 use kafka::producer::Producer;
 use lazy_static::lazy_static;
-
-
 use tokio::sync::Mutex;
 use crate::connector::{initialize_client, initialize_producer};
-
-
 mod connector;
 pub mod actions;
 pub mod serenity;
@@ -74,12 +67,22 @@ impl Charcoal {
     }
 }
 
+pub struct SSLConfig {
+    pub ssl_key: String,
+    pub ssl_ca: String,
+    pub ssl_cert: String,
+}
+
+struct CharcoalConfig {
+    pub ssl: Option<SSLConfig>
+}
+
 /// Initializes Charcoal Instance
-pub async fn init_charcoal(broker: String) -> Arc<Mutex<Charcoal>>  {
+pub async fn init_charcoal(broker: String,config: CharcoalConfig) -> Arc<Mutex<Charcoal>>  {
     let brokers = vec![broker];
     //TODO: Sort this mess out
-    let producer : Producer = initialize_producer(initialize_client(&brokers));
-    let consumer = Consumer::from_client(initialize_client(&brokers))
+    let producer : Producer = initialize_producer(initialize_client(&brokers,&config));
+    let consumer = Consumer::from_client(initialize_client(&brokers,&config))
 
     .with_topic(String::from("communication"))
     .create()
