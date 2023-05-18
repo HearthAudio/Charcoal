@@ -28,9 +28,9 @@ pub fn initialize_client(brokers: &Vec<String>,config: &CharcoalConfig) -> Kafka
         builder.set_cipher_list("DEFAULT").unwrap();
         builder.set_verify(SslVerifyMode::PEER);
 
-        let cert_file = config.ssl.unwrap().ssl_cert;
-        let cert_key = config.ssl.unwrap().ssl_cert;
-        let ca_cert = config.ssl.unwrap().ssl_ca;
+        let cert_file = config.ssl.as_ref().unwrap().ssl_cert.clone();
+        let cert_key = config.ssl.as_ref().unwrap().ssl_cert.clone();
+        let ca_cert = config.ssl.as_ref().unwrap().ssl_ca.clone();
 
         info!("loading cert-file={}, key-file={}", cert_file, cert_key);
 
