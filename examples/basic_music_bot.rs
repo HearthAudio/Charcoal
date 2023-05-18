@@ -57,6 +57,7 @@ async fn main() {
     let mut client = Client::builder(&token, intents)
         .event_handler(Handler)
         .framework(framework)
+        // Add a Kafka URL here to connect to the broker
         .register_charcoal("kafka-185690f4-maxall4-aea3.aivencloud.com:23552".to_string())
         .await
         .expect("Err creating client");
@@ -92,18 +93,18 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
     let r = ctx.data.write().await;
     let mut manager = r.get::<CharcoalKey>().unwrap().lock().await;
 
+    // If we have already created the player just join the channel
     if manager.players.contains_key(&guild_id.to_string()) {
         let handler =  manager.players.get_mut(&guild_id.to_string()).unwrap();
         handler.join_channel(guild_id.to_string(),connect_to.to_string()).await;
     } else {
+        // If we have not created the player create it and then join the channel
         let mut handler = PlayerObject::new().await;
         handler.create_job().await;
         handler.join_channel(guild_id.to_string(),connect_to.to_string()).await;
         manager.players.insert(guild_id.to_string(), handler);
     }
 
-    // r.insert::<PlayerObjectKey>(Arc::new(Mutex::new(handler)));
-    println!("Inserted PLY");
     Ok(())
 }
 
