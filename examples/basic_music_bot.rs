@@ -1,5 +1,5 @@
 use std::env;
-use std::time::Duration;
+
 
 
 // Import the `Context` to handle commands.
@@ -20,7 +20,7 @@ use serenity::{
     prelude::GatewayIntents,
     Result as SerenityResult,
 };
-use tokio::time::sleep;
+
 
 
 use charcoal::actions::channel_manager::ChannelManager;
@@ -143,7 +143,7 @@ async fn loopforever(ctx: &Context, msg: &Message) -> CommandResult {
     let mut manager = r.get::<CharcoalKey>().unwrap().lock().await;
     let manager = manager.get_player(&guild_id.to_string());
 
-    let meta = manager.loop_indefinitely().await;
+    let _meta = manager.loop_indefinitely().await;
     Ok(())
 }
 

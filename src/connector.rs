@@ -3,11 +3,11 @@
 
 
 
-use std::process;
 
-use std::time::Duration;
+
+
 use hearth_interconnect::messages::{Message};
-use log::{debug, error, info, warn};
+use log::{error};
 
 use rdkafka::Message as KafkaMessage;
 use rdkafka::{ClientConfig};

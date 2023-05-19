@@ -27,7 +27,7 @@ impl ChannelManager for PlayerObject {
 
         send_message(&Message::ExternalQueueJob(JobRequest {
             request_id: nanoid!(),
-        }), "communication", &mut p.unwrap()).await;
+        }), "communication", p.unwrap()).await;
         // Parse result
         boilerplate_parse_result(|message| {
             match message {
