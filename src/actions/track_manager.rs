@@ -64,7 +64,7 @@ impl TrackManager for PlayerObject {
         let mut px = PRODUCER.lock().await;
         let p = px.as_mut();
 
-        Ssend_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
+        send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
             action_type: DWCActionType::LoopForever,
             play_audio_url: None,
