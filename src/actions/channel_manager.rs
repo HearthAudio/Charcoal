@@ -27,7 +27,7 @@ impl ChannelManager for PlayerObject {
 
         send_message(&Message::ExternalQueueJob(JobRequest {
             request_id: nanoid!(),
-        }), "communication", &mut p.unwrap());
+        }), "communication", &mut p.unwrap()).await;
         // Parse result
         boilerplate_parse_result(|message| {
             match message {
@@ -43,7 +43,7 @@ impl ChannelManager for PlayerObject {
                 _ => {}
             }
             return true;
-        },&mut *c.unwrap());
+        },&mut *c.unwrap()).await;
     }
     async fn join_channel(&mut self, voice_channel_id: String,guild_id: String) {
         self.guild_id = Some(guild_id);
@@ -65,7 +65,7 @@ impl ChannelManager for PlayerObject {
             seek_position: None,
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
-        }), "communication", &mut p.unwrap());
+        }), "communication", p.unwrap()).await;
     }
     async fn exit_channel(&self) {
         let mut px = PRODUCER.lock().await;
@@ -82,7 +82,7 @@ impl ChannelManager for PlayerObject {
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
             voice_channel_id: None,
-        }), "communication", &mut *p.unwrap());
+        }), "communication", &mut *p.unwrap()).await;
         
     }
 }

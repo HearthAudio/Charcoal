@@ -31,7 +31,7 @@ impl Player for PlayerObject {
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
             voice_channel_id: None
-        }), "communication", &mut *p.unwrap());
+        }), "communication", &mut *p.unwrap()).await;
         
     }
     async fn play_from_youtube(&mut self,url: String) {
@@ -50,7 +50,7 @@ impl Player for PlayerObject {
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
             voice_channel_id: None
-        }),"communication",&mut *p.unwrap());
+        }),"communication",&mut *p.unwrap()).await;
         
     }
 }

@@ -2,18 +2,21 @@
 //! See Examples in the Github repo in the sub-folder examples/
 use std::collections::HashMap;
 use std::sync::{Arc};
-use kafka::consumer::Consumer;
-use kafka::producer::Producer;
 use lazy_static::lazy_static;
+use nanoid::nanoid;
 use tokio::sync::Mutex;
-use crate::connector::{initialize_client, initialize_producer};
+use crate::connector::{initialize_consume, initialize_producer};
 mod connector;
 pub mod actions;
 pub mod serenity;
+mod constants;
+
+use rdkafka::consumer::{StreamConsumer};
+use rdkafka::producer::{FutureProducer};
 
 lazy_static! {
-    pub(crate) static ref PRODUCER: Mutex<Option<Producer>> = Mutex::new(None);
-    pub(crate) static ref CONSUMER: Mutex<Option<Consumer>> = Mutex::new(None);
+    pub(crate) static ref PRODUCER: Mutex<Option<FutureProducer>> = Mutex::new(None);
+    pub(crate) static ref CONSUMER: Mutex<Option<StreamConsumer>> = Mutex::new(None);
 }
 
 /// Represents an instance in a voice channel
@@ -58,16 +61,10 @@ pub struct CharcoalConfig {
 
 /// Initializes Charcoal Instance
 pub async fn init_charcoal(broker: String,config: CharcoalConfig) -> Arc<Mutex<Charcoal>>  {
-    let brokers = vec![broker];
 
-    // This isn't great we should really switch to rdkafka instead of kafka
+    let consumer = initialize_consume(&broker,&config,&nanoid!()).await;
 
-    let consumer = Consumer::from_client(initialize_client(&brokers,&config))
-        .with_topic(config.kafka_topic.clone())
-        .create()
-        .unwrap();
-
-    let producer : Producer = initialize_producer(initialize_client(&brokers,&config));
+    let producer = initialize_producer(&broker, &config);
 
     *PRODUCER.lock().await = Some(producer);
     *CONSUMER.lock().await = Some(consumer);

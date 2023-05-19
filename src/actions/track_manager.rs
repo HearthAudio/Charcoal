@@ -37,7 +37,7 @@ impl TrackManager for PlayerObject {
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
             voice_channel_id: None
-        }),"communication",&mut *p.unwrap());
+        }),"communication",&mut *p.unwrap()).await;
         
     }
     async fn force_stop_loop(&self) {
@@ -56,7 +56,7 @@ impl TrackManager for PlayerObject {
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
             voice_channel_id: None
-        }),"communication",&mut *p.unwrap());
+        }),"communication",&mut *p.unwrap()).await;
         
     }
     async fn loop_indefinitely(&self) {
@@ -64,7 +64,7 @@ impl TrackManager for PlayerObject {
         let mut px = PRODUCER.lock().await;
         let p = px.as_mut();
 
-        Ssend_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
+        send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
             action_type: DWCActionType::LoopForever,
             play_audio_url: None,
@@ -75,7 +75,7 @@ impl TrackManager for PlayerObject {
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
             voice_channel_id: None
-        }),"communication",&mut *p.unwrap());
+        }),"communication",&mut *p.unwrap()).await;
         
     }
     async fn loop_x_times(&self,times: usize) {
@@ -91,10 +91,10 @@ impl TrackManager for PlayerObject {
             request_id: None,
             new_volume: None,
             seek_position: None,
-            loop_times: Some(times.clone()),
+            loop_times: Some(times),
             worker_id: self.worker_id.clone().unwrap(),
             voice_channel_id: None
-        }),"communication",&mut *p.unwrap());
+        }),"communication",&mut *p.unwrap()).await;
         
     }
     async fn seek_to_position(&self,position: Duration) {
@@ -113,7 +113,7 @@ impl TrackManager for PlayerObject {
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
             voice_channel_id: None
-        }),"communication",&mut *p.unwrap());
+        }),"communication",&mut *p.unwrap()).await;
         
     }
     async fn resume_playback(&self) {
@@ -132,7 +132,7 @@ impl TrackManager for PlayerObject {
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
             voice_channel_id: None
-        }),"communication",&mut *p.unwrap());
+        }),"communication",&mut *p.unwrap()).await;
         
     }
     async fn pause_playback(&self) {
@@ -151,7 +151,7 @@ impl TrackManager for PlayerObject {
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
             voice_channel_id: None
-        }),"communication",&mut *p.unwrap());
+        }),"communication",&mut *p.unwrap()).await;
         
     }
     async fn get_metadata(&self) -> Option<Metadata> {
@@ -173,7 +173,7 @@ impl TrackManager for PlayerObject {
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
             voice_channel_id: None
-        }),"communication",&mut *p.unwrap());
+        }),"communication",&mut *p.unwrap()).await;
         // Parse result
         let mut result: Option<Metadata> = None;
         boilerplate_parse_result(|message| {
@@ -189,7 +189,7 @@ impl TrackManager for PlayerObject {
                 _ => {}
             }
             return true;
-        },&mut *c.unwrap());
+        },&mut *c.unwrap()).await;
         return result;
     }
 }
