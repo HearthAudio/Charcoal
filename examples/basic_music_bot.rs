@@ -1,4 +1,5 @@
 use std::env;
+use std::time::Duration;
 
 
 // Import the `Context` to handle commands.
@@ -19,6 +20,7 @@ use serenity::{
     prelude::GatewayIntents,
     Result as SerenityResult,
 };
+use tokio::time::sleep;
 
 
 use charcoal::actions::channel_manager::ChannelManager;
@@ -36,7 +38,7 @@ impl EventHandler for Handler {
 }
 
 #[group]
-#[commands(join, leave, play, ping,metadata)]
+#[commands(join, leave, play, ping,metadata,loopforever)]
 struct General;
 
 #[tokio::main]
@@ -108,7 +110,8 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
         // If we have not created the player create it and then join the channel
         let mut handler = PlayerObject::new().await;
         handler.create_job().await;
-        handler.join_channel(guild_id.to_string(),connect_to.to_string()).await;
+        // sleep(Duration::from_secs(1)).await;
+        handler.join_channel(connect_to.to_string(),guild_id.to_string()).await;
         manager.players.insert(guild_id.to_string(), handler);
     }
 
@@ -127,6 +130,20 @@ async fn metadata(ctx: &Context, msg: &Message) -> CommandResult {
 
     let meta = manager.get_metadata().await;
     println!("{:?}",meta.unwrap());
+    Ok(())
+}
+
+#[command]
+#[only_in(guilds)]
+async fn loopforever(ctx: &Context, msg: &Message) -> CommandResult {
+    let r = ctx.data.read().await;
+
+    let guild = msg.guild(&ctx.cache).unwrap();
+    let guild_id = guild.id;
+    let mut manager = r.get::<CharcoalKey>().unwrap().lock().await;
+    let manager = manager.get_player(&guild_id.to_string());
+
+    let meta = manager.loop_indefinitely().await;
     Ok(())
 }
 
