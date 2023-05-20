@@ -98,21 +98,24 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
             return Ok(());
         }
     };
-
     let r = ctx.data.write().await;
     let mut manager = r.get::<CharcoalKey>().unwrap().lock().await;
 
     // If we have already created the player just join the channel
+    println!("Joining");
     if manager.players.contains_key(&guild_id.to_string()) {
         let handler =  manager.players.get_mut(&guild_id.to_string()).unwrap();
         handler.join_channel(guild_id.to_string(),connect_to.to_string()).await;
     } else {
+        println!("CN");
         // If we have not created the player create it and then join the channel
         let mut handler = PlayerObject::new().await;
         handler.create_job().await;
+        println!("CJ");
         // sleep(Duration::from_secs(1)).await;
         handler.join_channel(connect_to.to_string(),guild_id.to_string()).await;
         manager.players.insert(guild_id.to_string(), handler);
+        println!("CNS");
     }
 
     Ok(())
