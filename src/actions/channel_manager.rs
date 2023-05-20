@@ -5,13 +5,14 @@ use log::{error};
 use nanoid::nanoid;
 use crate::{CONSUMER, PlayerObject, PRODUCER};
 use async_trait::async_trait;
+use crate::background::processor::IPCData;
 use crate::connector::{send_message};
 
 #[async_trait]
 /// Provides basic functionality to create a job on the hearth server, join a channel, and exit a channel
 pub trait ChannelManager {
     async fn create_job(&mut self);
-    async fn join_channel(&mut self, voice_channel_id: String,guild_id: String);
+    async fn join_channel(&mut self, voice_channel_id: String);
     async fn exit_channel(&self);
 }
 
@@ -19,53 +20,33 @@ pub trait ChannelManager {
 impl ChannelManager for PlayerObject {
     async fn create_job(&mut self) {
 
-        self.tx.send(Message::ExternalQueueJob(JobRequest {
+        self.tx.send(IPCData::new_from_main(Message::ExternalQueueJob(JobRequest {
             request_id: nanoid!(),
-        })).unwrap();
+        }))).unwrap();
 
+        println!("ST-LOOP RECV");
+        loop {
+            let res = self.rx.recv().await;
+            match res {
+                Ok(r) => {
+                    println!("RECV: {:?}",r);
+                    if r.from_background {
+                        if let Message::ExternalQueueJobResponse(j) = r.message {
+                            self.worker_id = Some(j.worker_id);
+                            self.job_id = Some(j.job_id);
+                        }
+                    }
+                },
+                Err(e) => error!("Failed to receive message with error on main thread: {}",e),
+            }
+        }
 
-
-        //
-        // let mut px = PRODUCER.lock().await;
-        // let p = px.as_mut();
-        //
-        // let mut cx = CONSUMER.lock().await;
-        // let c = cx.as_mut();
-        //
-        // send_message(&Message::ExternalQueueJob(JobRequest {
-        //     request_id: nanoid!(),
-        // }), "communication", &mut p.unwrap());
-        // println!("SM");
-        // // Parse result
-        // boilerplate_parse_result(|message| {
-        //     match message {
-        //         Message::ErrorReport(error_report) => {
-        //             error!("{} - Error with Job ID: {} and Request ID: {}",error_report.error,error_report.job_id,error_report.request_id);
-        //             return false;
-        //         },
-        //         Message::ExternalQueueJobResponse(res) => {
-        //             println!("REQJR");
-        //             self.worker_id = Some(res.worker_id);
-        //             self.job_id = Some(res.job_id);
-        //             return false;
-        //         },
-        //         _ => {}
-        //     }
-        //     return true;
-        // },&mut *c.unwrap());
     }
-    async fn join_channel(&mut self, voice_channel_id: String,guild_id: String) {
-        self.guild_id = Some(guild_id);
+    async fn join_channel(&mut self, voice_channel_id: String) {
 
-        let mut px = PRODUCER.lock().await;
-        let p = px.as_mut();
-
-        let mut cx = CONSUMER.lock().await;
-        let _c = cx.as_mut();
-
-        send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
+        self.tx.send(IPCData::new_from_main(Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
-            guild_id: self.guild_id.clone(),
+            guild_id: Some(self.guild_id.clone()),
             voice_channel_id: Some(voice_channel_id),
             play_audio_url: None,
             action_type: DWCActionType::JoinChannel,
@@ -74,7 +55,8 @@ impl ChannelManager for PlayerObject {
             seek_position: None,
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
-        }), "communication", &mut p.unwrap());
+        }))).unwrap();
+
     }
     async fn exit_channel(&self) {
         let mut px = PRODUCER.lock().await;
@@ -84,7 +66,7 @@ impl ChannelManager for PlayerObject {
             job_id: self.job_id.clone().unwrap(),
             action_type: DWCActionType::LeaveChannel,
             play_audio_url: None,
-            guild_id: Some(self.guild_id.clone().unwrap()),
+            guild_id: Some(self.guild_id.clone()),
             request_id: Some(nanoid!()),
             new_volume: None,
             seek_position: None,
