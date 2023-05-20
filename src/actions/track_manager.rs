@@ -6,7 +6,7 @@ use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCAc
 use log::error;
 use nanoid::nanoid;
 use crate::{CONSUMER, PlayerObject, PRODUCER};
-use crate::connector::{boilerplate_parse_result, send_message};
+use crate::connector::{send_message};
 
 #[async_trait]
 /// Provides functionality that can be used once you start playing a track such as: looping, pausing, and resuming.
@@ -176,20 +176,20 @@ impl TrackManager for PlayerObject {
         }),"communication",&mut *p.unwrap());
         // Parse result
         let mut result: Option<Metadata> = None;
-        boilerplate_parse_result(|message| {
-            match message {
-                Message::ErrorReport(error_report) => {
-                    error!("{} - Error with Job ID: {} and Request ID: {}",error_report.error,error_report.job_id,error_report.request_id);
-                    return false;
-                },
-                Message::ExternalMetadataResult(metadata) => {
-                    result = Some(metadata);
-                    return false;
-                }
-                _ => {}
-            }
-            return true;
-        },&mut *c.unwrap());
+        // boilerplate_parse_result(|message| {
+        //     match message {
+        //         Message::ErrorReport(error_report) => {
+        //             error!("{} - Error with Job ID: {} and Request ID: {}",error_report.error,error_report.job_id,error_report.request_id);
+        //             return false;
+        //         },
+        //         Message::ExternalMetadataResult(metadata) => {
+        //             result = Some(metadata);
+        //             return false;
+        //         }
+        //         _ => {}
+        //     }
+        //     return true;
+        // },&mut *c.unwrap());
         return result;
     }
 }

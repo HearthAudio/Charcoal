@@ -3,6 +3,8 @@
 use std::collections::HashMap;
 use std::sync::{Arc};
 use futures::SinkExt;
+use hearth_interconnect::messages::Message;
+use hearth_interconnect::worker_communication::DWCActionType;
 use kafka::consumer::Consumer;
 use kafka::producer::Producer;
 use lazy_static::lazy_static;
@@ -27,22 +29,25 @@ pub struct PlayerObject {
     worker_id: Option<String>,
     job_id:  Option<String>,
     guild_id:  Option<String>,
+    tx: Sender<Message>
 }
 
 impl PlayerObject {
     /// Creates a new Player Object that can then be joined to channel and used to playback audio
-    pub async fn new() -> Self {
+    pub async fn new(tx: Sender<Message>) -> Self {
         PlayerObject {
             worker_id: None,
             job_id: None,
             guild_id: None,
+            tx
         }
     }
 }
 
 /// Stores Charcoal instance
 pub struct Charcoal {
-    pub players: HashMap<String,PlayerObject> // Guild ID to PlayerObject
+    pub players: HashMap<String,PlayerObject>, // Guild ID to PlayerObject
+    pub tx: Sender<Message>
 }
 
 impl Charcoal {
@@ -73,22 +78,19 @@ pub async fn init_charcoal(broker: String,config: CharcoalConfig) -> Arc<Mutex<C
         .create()
         .unwrap();
 
-    let producer : Producer = initialize_producer(initialize_client(&brokers,&config));
+    // let producer : Producer = initialize_producer(initialize_client(&brokers,&config));
 
-    *PRODUCER.lock().await = Some(producer);
-    *CONSUMER.lock().await = Some(consumer);
-    let mut g_tx: Arc<Option<Sender<String>>> = Arc::new(None);
-    let mut t_g_tx = g_tx.clone();
+    // *PRODUCER.lock().await = Some(producer);
+    // *CONSUMER.lock().await = Some(consumer);
+
+    let (tx, mut rx) = broadcast::channel(16);
+    let sub_tx = tx.clone();
     tokio::task::spawn(async move {
-        let (tx, mut rx) = broadcast::channel(16);
-        t_g_tx = Arc::new(Some(tx.clone()).clone());
-        init_processor(rx).await;
+        init_processor(rx,sub_tx,consumer).await;
     });
 
-    let mut x = g_tx.clone();
-    x.as_ref().unwrap();
-
     return Arc::new(Mutex::new(Charcoal {
-        players: HashMap::new()
+        players: HashMap::new(),
+        tx
     }));
 }

@@ -5,7 +5,7 @@ use log::{error};
 use nanoid::nanoid;
 use crate::{CONSUMER, PlayerObject, PRODUCER};
 use async_trait::async_trait;
-use crate::connector::{ boilerplate_parse_result, send_message};
+use crate::connector::{send_message};
 
 #[async_trait]
 /// Provides basic functionality to create a job on the hearth server, join a channel, and exit a channel
@@ -19,33 +19,40 @@ pub trait ChannelManager {
 impl ChannelManager for PlayerObject {
     async fn create_job(&mut self) {
 
-        let mut px = PRODUCER.lock().await;
-        let p = px.as_mut();
-
-        let mut cx = CONSUMER.lock().await;
-        let c = cx.as_mut();
-
-        send_message(&Message::ExternalQueueJob(JobRequest {
+        self.tx.send(Message::ExternalQueueJob(JobRequest {
             request_id: nanoid!(),
-        }), "communication", &mut p.unwrap());
-        println!("SM");
-        // Parse result
-        boilerplate_parse_result(|message| {
-            match message {
-                Message::ErrorReport(error_report) => {
-                    error!("{} - Error with Job ID: {} and Request ID: {}",error_report.error,error_report.job_id,error_report.request_id);
-                    return false;
-                },
-                Message::ExternalQueueJobResponse(res) => {
-                    println!("REQJR");
-                    self.worker_id = Some(res.worker_id);
-                    self.job_id = Some(res.job_id);
-                    return false;
-                },
-                _ => {}
-            }
-            return true;
-        },&mut *c.unwrap());
+        })).unwrap();
+
+
+
+        //
+        // let mut px = PRODUCER.lock().await;
+        // let p = px.as_mut();
+        //
+        // let mut cx = CONSUMER.lock().await;
+        // let c = cx.as_mut();
+        //
+        // send_message(&Message::ExternalQueueJob(JobRequest {
+        //     request_id: nanoid!(),
+        // }), "communication", &mut p.unwrap());
+        // println!("SM");
+        // // Parse result
+        // boilerplate_parse_result(|message| {
+        //     match message {
+        //         Message::ErrorReport(error_report) => {
+        //             error!("{} - Error with Job ID: {} and Request ID: {}",error_report.error,error_report.job_id,error_report.request_id);
+        //             return false;
+        //         },
+        //         Message::ExternalQueueJobResponse(res) => {
+        //             println!("REQJR");
+        //             self.worker_id = Some(res.worker_id);
+        //             self.job_id = Some(res.job_id);
+        //             return false;
+        //         },
+        //         _ => {}
+        //     }
+        //     return true;
+        // },&mut *c.unwrap());
     }
     async fn join_channel(&mut self, voice_channel_id: String,guild_id: String) {
         self.guild_id = Some(guild_id);
