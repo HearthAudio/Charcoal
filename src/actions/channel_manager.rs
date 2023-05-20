@@ -78,7 +78,7 @@ impl ChannelManager for PlayerObject {
             action_type: DWCActionType::LeaveChannel,
             play_audio_url: None,
             guild_id: Some(self.guild_id.clone().unwrap()),
-            request_id: None,
+            request_id: Some(nanoid!()),
             new_volume: None,
             seek_position: None,
             loop_times: None,
