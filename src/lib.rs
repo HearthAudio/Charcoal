@@ -2,18 +2,24 @@
 //! See Examples in the Github repo in the sub-folder examples/
 use std::collections::HashMap;
 use std::sync::{Arc};
+use futures::SinkExt;
 use kafka::consumer::Consumer;
 use kafka::producer::Producer;
 use lazy_static::lazy_static;
-use tokio::sync::Mutex;
+use tokio::sync::{broadcast, Mutex};
+use tokio::sync::broadcast::{Receiver, Sender};
+use crate::background::processor::init_processor;
 use crate::connector::{initialize_client, initialize_producer};
 mod connector;
 pub mod actions;
 pub mod serenity;
+pub(crate) mod background;
 
 lazy_static! {
     pub(crate) static ref PRODUCER: Mutex<Option<Producer>> = Mutex::new(None);
     pub(crate) static ref CONSUMER: Mutex<Option<Consumer>> = Mutex::new(None);
+    pub(crate) static ref TX: Mutex<Option<Sender<String>>> = Mutex::new(None);
+    pub(crate) static ref RX: Mutex<Option<Receiver<String>>> = Mutex::new(None);
 }
 
 /// Represents an instance in a voice channel
@@ -71,6 +77,16 @@ pub async fn init_charcoal(broker: String,config: CharcoalConfig) -> Arc<Mutex<C
 
     *PRODUCER.lock().await = Some(producer);
     *CONSUMER.lock().await = Some(consumer);
+    let mut g_tx: Arc<Option<Sender<String>>> = Arc::new(None);
+    let mut t_g_tx = g_tx.clone();
+    tokio::task::spawn(async move {
+        let (tx, mut rx) = broadcast::channel(16);
+        t_g_tx = Arc::new(Some(tx.clone()).clone());
+        init_processor(rx).await;
+    });
+
+    let mut x = g_tx.clone();
+    x.as_ref().unwrap();
 
     return Arc::new(Mutex::new(Charcoal {
         players: HashMap::new()
