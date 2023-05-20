@@ -8,7 +8,7 @@ use hearth_interconnect::worker_communication::DWCActionType;
 use kafka::consumer::Consumer;
 use kafka::producer::Producer;
 use lazy_static::lazy_static;
-use log::error;
+use log::{debug, error};
 use tokio::sync::{broadcast, Mutex};
 use tokio::sync::broadcast::{Receiver, Sender};
 use crate::background::processor::{init_processor, IPCData};
@@ -30,21 +30,37 @@ pub struct PlayerObject {
     worker_id: Option<String>,
     job_id:  Option<String>,
     guild_id:  String,
-    tx: Sender<IPCData>,
-    rx: Receiver<IPCData>
+    tx: Arc<Sender<IPCData>>,
+    rx: Receiver<IPCData>,
+    bg_com_tx: Sender<IPCData>
 }
 
 impl PlayerObject {
     /// Creates a new Player Object that can then be joined to channel and used to playback audio
-    pub async fn new(guild_id: String) -> Self {
+    pub async fn new(guild_id: String,com_tx: Sender<IPCData>) -> Self {
         let (tx, mut rx) = broadcast::channel(16);
+
+        let mut t_rx = tx.subscribe();
+        tokio::task::spawn(async move {
+            println!("START");
+            loop {
+                let res = rx.try_recv();
+                match res {
+                    Ok(r) => {
+                        println!("RECV TRX: {:?}",r);
+                    },
+                    Err(e) => debug!("Failed to receive message with error on main thread QRX: {}",e),
+                }
+            }
+        });
 
         PlayerObject {
             worker_id: None,
             job_id: None,
             guild_id,
-            tx,
-            rx
+            tx: Arc::new(tx),
+            rx: t_rx,
+            bg_com_tx: com_tx
         }
     }
 }
@@ -52,7 +68,7 @@ impl PlayerObject {
 /// Stores Charcoal instance
 pub struct Charcoal {
     pub players: HashMap<String,PlayerObject>, // Guild ID to PlayerObject
-    tx: Sender<IPCData>,
+    pub tx: Sender<IPCData>,
 }
 
 impl Charcoal {
@@ -98,18 +114,6 @@ pub async fn init_charcoal(broker: String,config: CharcoalConfig) -> Arc<Mutex<C
     tokio::task::spawn(async move {
         init_processor(rx,sub_tx,consumer,producer).await;
     });
-
-    // tokio::task::spawn(async move {
-    //     loop {
-    //         let res = q_rx.recv().await;
-    //         match res {
-    //             Ok(r) => {
-    //                 println!("RECV QRX: {:?}",r);
-    //             },
-    //             Err(e) => error!("Failed to receive message with error on main thread QRX: {}",e),
-    //         }
-    //     }
-    // });
 
     return Arc::new(Mutex::new(Charcoal {
         players: HashMap::new(),

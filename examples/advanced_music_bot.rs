@@ -156,7 +156,7 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
         handler.join_channel(connect_to.to_string()).await;
     } else {
         // If we have not created the player create it and then join the channel
-        let mut handler = PlayerObject::new(guild_id.to_string()).await;
+        let mut handler = PlayerObject::new(guild_id.to_string(),manager.tx.clone()).await;
         handler.create_job().await;
         // sleep(Duration::from_secs(1)).await;
         handler.join_channel(connect_to.to_string()).await;

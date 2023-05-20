@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 use hearth_interconnect::messages::Message;
 use kafka::consumer::Consumer;
 use kafka::producer::Producer;
@@ -15,7 +16,7 @@ pub struct FromBackgroundData {
 #[derive(Clone,Debug)]
 pub struct FromMainData {
     pub message: Message,
-    pub response_tx: Sender<IPCData>,
+    pub response_tx: Arc<Sender<IPCData>>,
     pub guild_id: String
 }
 
@@ -27,7 +28,7 @@ pub enum IPCData {
 
 // Makes things slightly easier
 impl IPCData {
-    pub fn new_from_main(message: Message,sender: Sender<IPCData>,guild_id: String) -> IPCData {
+    pub fn new_from_main(message: Message, sender: Arc<Sender<IPCData>>, guild_id: String) -> IPCData {
         IPCData::FromMain(FromMainData {
             message,
             response_tx: sender,
@@ -43,7 +44,7 @@ impl IPCData {
 
 pub async fn init_processor(mut rx: Receiver<IPCData>, mut tx: Sender<IPCData>, mut consumer: Consumer,mut producer: Producer) {
 
-    let mut guild_id_to_tx: HashMap<String,Sender<IPCData>> = HashMap::new();
+    let mut guild_id_to_tx: HashMap<String,Arc<Sender<IPCData>>> = HashMap::new();
     loop {
         let mss = consumer.poll().unwrap();
         if mss.is_empty() {
