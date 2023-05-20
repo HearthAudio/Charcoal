@@ -40,8 +40,8 @@ pub struct Charcoal {
 }
 
 impl Charcoal {
-    pub fn get_player(&mut self,guild_id: &String) -> &mut PlayerObject {
-        return self.players.get_mut(guild_id).unwrap();
+    pub fn get_player(&mut self,guild_id: &String) -> Option<&mut PlayerObject> {
+        return self.players.get_mut(guild_id);
     }
 }
 

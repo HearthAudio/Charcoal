@@ -1,5 +1,6 @@
 use std::env;
 use std::time::Duration;
+use log::error;
 
 
 // Import the `Context` to handle commands.
@@ -128,8 +129,16 @@ async fn metadata(ctx: &Context, msg: &Message) -> CommandResult {
     let mut manager = r.get::<CharcoalKey>().unwrap().lock().await;
     let manager = manager.get_player(&guild_id.to_string());
 
-    let meta = manager.get_metadata().await;
-    println!("{:?}",meta.unwrap());
+    match manager {
+        Some(manager) => {
+            let meta = manager.get_metadata().await;
+            println!("{:?}",meta.unwrap());
+        },
+        None => {
+            error!("Failed to get manager!");
+        }
+    }
+
     Ok(())
 }
 
@@ -142,8 +151,16 @@ async fn loopforever(ctx: &Context, msg: &Message) -> CommandResult {
     let guild_id = guild.id;
     let mut manager = r.get::<CharcoalKey>().unwrap().lock().await;
     let manager = manager.get_player(&guild_id.to_string());
+    match manager {
+        Some(manager) => {
+            let meta = manager.loop_indefinitely().await;
+        },
+        None => {
+            error!("Failed to get manager!");
+        }
+    }
 
-    let meta = manager.loop_indefinitely().await;
+
     Ok(())
 }
 
@@ -157,7 +174,14 @@ async fn leave(ctx: &Context, msg: &Message) -> CommandResult {
     let mut manager = r.get::<CharcoalKey>().unwrap().lock().await;
     let manager = manager.get_player(&guild_id.to_string());
 
-    manager.exit_channel().await;
+    match manager {
+        Some(manager) => {
+            manager.exit_channel().await;
+        },
+        None => {
+            error!("Failed to get manager!");
+        }
+    }
 
     Ok(())
 }
