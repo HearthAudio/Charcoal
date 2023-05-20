@@ -5,6 +5,7 @@ use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCAc
 
 use nanoid::nanoid;
 use crate::{PlayerObject, PRODUCER};
+use crate::background::processor::IPCData;
 use crate::connector::{send_message};
 
 #[async_trait]
@@ -17,10 +18,8 @@ pub trait Player {
 #[async_trait]
 impl Player for PlayerObject {
     async fn play_from_http(&mut self, url: String) {
-        let mut px = PRODUCER.lock().await;
-        let p = px.as_mut();
 
-        send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
+        self.bg_com_tx.send(IPCData::new_from_main(Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
             action_type: DWCActionType::PlayDirectLink,
             play_audio_url: Some(url),
@@ -31,15 +30,12 @@ impl Player for PlayerObject {
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
             voice_channel_id: None
-        }), "communication", &mut *p.unwrap());
+        }), self.tx.clone(), self.guild_id.clone())).unwrap();
         
     }
     async fn play_from_youtube(&mut self,url: String) {
 
-        let mut px = PRODUCER.lock().await;
-        let p = px.as_mut();
-
-        send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
+        self.bg_com_tx.send(IPCData::new_from_main(Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
             action_type: DWCActionType::PlayFromYoutube,
             play_audio_url: Some(url),
@@ -50,7 +46,7 @@ impl Player for PlayerObject {
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
             voice_channel_id: None
-        }),"communication",&mut *p.unwrap());
+        }), self.tx.clone(), self.guild_id.clone())).unwrap();
         
     }
 }

@@ -25,25 +25,8 @@ impl ChannelManager for PlayerObject {
             guild_id: self.guild_id.clone(),
         }), self.tx.clone(), self.guild_id.clone())).unwrap();
 
-        println!("ST-LOOP RECV");
-
-        let mut t_rx = self.tx.subscribe();
-        // tokio::task::spawn(async move {
-        //     println!("START");
-        //     loop {
-        //         let res = t_rx.try_recv();
-        //         match res {
-        //             Ok(r) => {
-        //                 println!("RECV TRX: {:?}",r);
-        //             },
-        //             Err(e) => debug!("Failed to receive message with error on main thread QRX: {}",e),
-        //         }
-        //     }
-        // });
-
-        println!("START");
         loop {
-            let res = t_rx.try_recv();
+            let res = self.rx.try_recv();
             match res {
                 Ok(r) => {
                     if let IPCData::FromBackground(bg) = r {
@@ -77,10 +60,7 @@ impl ChannelManager for PlayerObject {
 
     }
     async fn exit_channel(&self) {
-        let mut px = PRODUCER.lock().await;
-        let p = px.as_mut();
-
-        send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
+        self.bg_com_tx.send(IPCData::new_from_main(Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
             action_type: DWCActionType::LeaveChannel,
             play_audio_url: None,
@@ -91,7 +71,7 @@ impl ChannelManager for PlayerObject {
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
             voice_channel_id: None,
-        }), "communication", &mut *p.unwrap());
+        }), self.tx.clone(),self.guild_id.clone())).unwrap();
         
     }
 }

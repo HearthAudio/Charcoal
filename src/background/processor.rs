@@ -63,17 +63,12 @@ pub async fn init_processor(mut rx: Receiver<IPCData>, mut tx: Sender<IPCData>, 
                                 //TODO: Publish to event stream
                             },
                             Message::ExternalQueueJobResponse(r) => {
-                                println!("RXYXX");
                                 let mut tx = guild_id_to_tx.get_mut(&r.guild_id);
-                                println!("GTX");
                                 match tx {
                                     Some(tx) => {
-                                        println!("SENDRS");
                                         let r = tx.send(IPCData::new_from_background(message));
                                         match r {
-                                            Ok(_) => {
-                                                println!("Sent NFB");
-                                            },
+                                            Ok(_) => {},
                                             Err(e) => {
                                                 error!("Failed to send Kafka message to main thread once received with error: {}!",e)
                                             }
@@ -85,6 +80,23 @@ pub async fn init_processor(mut rx: Receiver<IPCData>, mut tx: Sender<IPCData>, 
                                 }
 
                             },
+                            Message::ExternalMetadataResult(metadata) => {
+                                let mut tx = guild_id_to_tx.get_mut(&metadata.guild_id);
+                                match tx {
+                                    Some(tx) => {
+                                        let r = tx.send(IPCData::new_from_background(message));
+                                        match r {
+                                            Ok(_) => {},
+                                            Err(e) => {
+                                                error!("Failed to send Kafka message to main thread once received with error: {}!",e)
+                                            }
+                                        }
+                                    },
+                                    None => {
+                                        error!("Failed to send Response from BG Thread!");
+                                    }
+                                }
+                            }
                             _ => {}
 
                         }
