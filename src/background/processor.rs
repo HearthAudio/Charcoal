@@ -56,16 +56,24 @@ pub async fn init_processor(mut rx: Receiver<IPCData>, mut tx: Sender<IPCData>, 
                 match parsed_message {
                     Ok(message) => {
                         println!("DAT:{:?}",message);
-                        match message {
+                        match &message {
                             Message::ErrorReport(e) => {
                                 error!("GOT Error: {:?} From Hearth Server",e);
                                 //TODO: Publish to event stream
                             },
                             Message::ExternalQueueJobResponse(r) => {
-                                let mut tx = guild_id_to_tx.get_mut(r.guild_id);
+                                let mut tx = guild_id_to_tx.get_mut(&r.guild_id);
                                 match tx {
                                     Some(tx) => {
-                                        let r = tx.send(IPCData::new_from_background(message.clone()));
+                                        let r = tx.send(IPCData::new_from_background(message));
+                                        match r {
+                                            Ok(_) => {
+                                                println!("Sent NFB");
+                                            },
+                                            Err(e) => {
+                                                error!("Failed to send Kafka message to main thread once received with error: {}!",e)
+                                            }
+                                        }
                                     },
                                     None => {
                                         error!("Failed to send Response from BG Thread!");
@@ -75,14 +83,6 @@ pub async fn init_processor(mut rx: Receiver<IPCData>, mut tx: Sender<IPCData>, 
                             },
                             _ => {}
 
-                        }
-                        match r {
-                            Ok(_) => {
-                                println!("Sent NFB");
-                            },
-                            Err(e) => {
-                                error!("Failed to send Kafka message to main thread once received with error: {}!",e)
-                            }
                         }
                     },
                     Err(e) => error!("{} - Failed to parse message",e),
