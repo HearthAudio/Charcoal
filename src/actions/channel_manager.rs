@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 use hearth_interconnect::messages::{JobRequest, Message};
 use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
-use log::{error};
+use log::{debug, error};
 use nanoid::nanoid;
 use crate::{CONSUMER, PlayerObject, PRODUCER};
 use async_trait::async_trait;
@@ -26,6 +26,20 @@ impl ChannelManager for PlayerObject {
         }), self.tx.clone(), self.guild_id.clone())).unwrap();
 
         println!("ST-LOOP RECV");
+
+        let mut t_rx = self.tx.subscribe();
+        tokio::task::spawn(async move {
+            println!("START");
+            loop {
+                let res = t_rx.try_recv();
+                match res {
+                    Ok(r) => {
+                        println!("RECV TRX: {:?}",r);
+                    },
+                    Err(e) => debug!("Failed to receive message with error on main thread QRX: {}",e),
+                }
+            }
+        });
 
         // let mut t_rx = self.tx.subscribe();
 

@@ -40,26 +40,12 @@ impl PlayerObject {
     pub async fn new(guild_id: String,com_tx: Sender<IPCData>) -> Self {
         let (tx, mut rx) = broadcast::channel(16);
 
-        let mut t_rx = tx.subscribe();
-        tokio::task::spawn(async move {
-            println!("START");
-            loop {
-                let res = rx.try_recv();
-                match res {
-                    Ok(r) => {
-                        println!("RECV TRX: {:?}",r);
-                    },
-                    Err(e) => debug!("Failed to receive message with error on main thread QRX: {}",e),
-                }
-            }
-        });
-
         PlayerObject {
             worker_id: None,
             job_id: None,
             guild_id,
             tx: Arc::new(tx),
-            rx: t_rx,
+            rx: rx,
             bg_com_tx: com_tx
         }
     }

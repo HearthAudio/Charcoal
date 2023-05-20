@@ -63,9 +63,12 @@ pub async fn init_processor(mut rx: Receiver<IPCData>, mut tx: Sender<IPCData>, 
                                 //TODO: Publish to event stream
                             },
                             Message::ExternalQueueJobResponse(r) => {
+                                println!("RXYXX");
                                 let mut tx = guild_id_to_tx.get_mut(&r.guild_id);
+                                println!("GTX");
                                 match tx {
                                     Some(tx) => {
+                                        println!("SENDRS");
                                         let r = tx.send(IPCData::new_from_background(message));
                                         match r {
                                             Ok(_) => {
