@@ -28,56 +28,52 @@ impl ChannelManager for PlayerObject {
         println!("ST-LOOP RECV");
 
         let mut t_rx = self.tx.subscribe();
-        tokio::task::spawn(async move {
-            println!("START");
-            loop {
-                let res = t_rx.try_recv();
-                match res {
-                    Ok(r) => {
-                        println!("RECV TRX: {:?}",r);
-                    },
-                    Err(e) => debug!("Failed to receive message with error on main thread QRX: {}",e),
-                }
-            }
-        });
-
-        // let mut t_rx = self.tx.subscribe();
-
         // tokio::task::spawn(async move {
+        //     println!("START");
         //     loop {
-        //         let res = t_rx.recv().await;
+        //         let res = t_rx.try_recv();
         //         match res {
         //             Ok(r) => {
         //                 println!("RECV TRX: {:?}",r);
-        //                 // if let IPCData::FromBackground(b) = r {
-        //                 //     if let Message::ExternalQueueJobResponse(j) = b.message {
-        //                 //         twi = j.guild_id; //DANGER - DANGER : Not sure about recreating arcs here might cause issues
-        //                 //         t_job_id = Arc::from(j.job_id);
-        //                 //     }
-        //                 // }
         //             },
-        //             Err(e) => error!("Failed to receive message with error on main thread QRX: {}",e),
+        //             Err(e) => debug!("Failed to receive message with error on main thread QRX: {}",e),
         //         }
         //     }
         // });
 
+        println!("START");
+        loop {
+            let res = t_rx.try_recv();
+            match res {
+                Ok(r) => {
+                    if let IPCData::FromBackground(bg) = r {
+                        if let Message::ExternalQueueJobResponse(q) = bg.message {
+                            self.job_id = Some(q.job_id);
+                            self.worker_id = Some(q.worker_id);
+                            break;
+                        }
+                    }
+                },
+                Err(e) => debug!("Failed to receive message with error on main thread QRX: {}",e),
+            }
+        }
 
 
     }
     async fn join_channel(&mut self, voice_channel_id: String) {
 
-        // self.bg_com_tx.send(IPCData::new_from_main(Message::DirectWorkerCommunication(DirectWorkerCommunication {
-        //     job_id: self.job_id.clone().unwrap(),
-        //     guild_id: Some(self.guild_id.clone()),
-        //     voice_channel_id: Some(voice_channel_id),
-        //     play_audio_url: None,
-        //     action_type: DWCActionType::JoinChannel,
-        //     request_id: Some(nanoid!()),
-        //     new_volume: None,
-        //     seek_position: None,
-        //     loop_times: None,
-        //     worker_id: self.worker_id.clone().unwrap(),
-        // }), self.tx.clone(),self.guild_id.clone())).unwrap();
+        self.bg_com_tx.send(IPCData::new_from_main(Message::DirectWorkerCommunication(DirectWorkerCommunication {
+            job_id: self.job_id.clone().unwrap(),
+            guild_id: Some(self.guild_id.clone()),
+            voice_channel_id: Some(voice_channel_id),
+            play_audio_url: None,
+            action_type: DWCActionType::JoinChannel,
+            request_id: Some(nanoid!()),
+            new_volume: None,
+            seek_position: None,
+            loop_times: None,
+            worker_id: self.worker_id.clone().unwrap(),
+        }), self.tx.clone(),self.guild_id.clone())).unwrap();
 
     }
     async fn exit_channel(&self) {
