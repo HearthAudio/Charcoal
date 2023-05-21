@@ -12,13 +12,21 @@ use crate::connector::{send_message};
 #[async_trait]
 /// Provides functionality that can be used once you start playing a track such as: looping, pausing, and resuming.
 pub trait TrackManager {
+    /// Set playback volume
     async fn set_playback_volume(&self,playback_volume: f32);
+    /// Stop looping
     async fn force_stop_loop(&self);
+    /// Loop forever
     async fn loop_indefinitely(&self);
+    /// Loop X amount of times
     async fn loop_x_times(&self,times: usize);
+    /// Seek to position on track from start
     async fn seek_to_position(&self,position: Duration);
+    /// Resume playback
     async fn resume_playback(&self);
+    /// Pause playback
     async fn pause_playback(&self);
+    /// Get metadata for track currently being played
     async fn get_metadata(&mut self) -> Metadata;
 }
 #[async_trait]
@@ -72,6 +80,7 @@ impl TrackManager for PlayerObject {
         }), self.tx.clone(), self.guild_id.clone())).unwrap();
         
     }
+
     async fn loop_x_times(&self,times: usize) {
 
         self.bg_com_tx.send(IPCData::new_from_main(Message::DirectWorkerCommunication(DirectWorkerCommunication {
@@ -118,8 +127,6 @@ impl TrackManager for PlayerObject {
             worker_id: self.worker_id.clone().unwrap(),
             voice_channel_id: None
         }), self.tx.clone(), self.guild_id.clone())).unwrap();
-
-
         
     }
     async fn pause_playback(&self) {
@@ -139,42 +146,6 @@ impl TrackManager for PlayerObject {
         
     }
     async fn get_metadata(&mut self) -> Metadata {
-
-        // let mut px = PRODUCER.lock().await;
-        // let p = px.as_mut();
-        //
-        // let mut cx = CONSUMER.lock().await;
-        // let c = cx.as_mut();
-        //
-        // send_message(&Message::DirectWorkerCommunication(DirectWorkerCommunication {
-        //     job_id: self.job_id.clone().unwrap(),
-        //     action_type: DWCActionType::GetMetaData,
-        //     play_audio_url: None,
-        //     guild_id: Some(self.guild_id.clone()),
-        //     request_id: Some(nanoid!()),
-        //     new_volume: None,
-        //     seek_position: None,
-        //     loop_times: None,
-        //     worker_id: self.worker_id.clone().unwrap(),
-        //     voice_channel_id: None
-        // }),"communication",&mut *p.unwrap());
-        // // Parse result
-        // let mut result: Option<Metadata> = None;
-        // boilerplate_parse_result(|message| {
-        //     match message {
-        //         Message::ErrorReport(error_report) => {
-        //             error!("{} - Error with Job ID: {} and Request ID: {}",error_report.error,error_report.job_id,error_report.request_id);
-        //             return false;
-        //         },
-        //         Message::ExternalMetadataResult(metadata) => {
-        //             result = Some(metadata);
-        //             return false;
-        //         }
-        //         _ => {}
-        //     }
-        //     return true;
-        // },&mut *c.unwrap());
-
 
         self.bg_com_tx.send(IPCData::new_from_main(Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),

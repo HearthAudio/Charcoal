@@ -1,3 +1,4 @@
+//! Standard actions that can be called on a PlayerObject
 use std::sync::Arc;
 use async_fn_traits::{AsyncFn2, AsyncFn3};
 use hearth_interconnect::errors::ErrorReport;
@@ -7,6 +8,7 @@ use crate::background::processor::IPCData;
 use crate::PlayerObject;
 
 impl PlayerObject {
+    /// Register an error callback that will be called if an error occurs on this PlayerObject
     pub async fn register_error_callback<A: AsyncFn3<ErrorReport, Arc<Http>, String, Output = ()> + std::marker::Send + 'static + std::marker::Sync + Send + Sync>(&mut self, callback: A,http: Arc<Http>,channel_id: String)
         where <A as AsyncFn3<hearth_interconnect::errors::ErrorReport, Arc<serenity::http::Http>, std::string::String>>::OutputFuture: std::marker::Send
     {

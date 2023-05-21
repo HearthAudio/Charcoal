@@ -19,6 +19,7 @@ pub trait ChannelManager {
 
 #[async_trait]
 impl ChannelManager for PlayerObject {
+    /// Create job on Hearth server for this PlayerObject
     async fn create_job(&mut self) {
 
         self.bg_com_tx.send(IPCData::new_from_main(Message::ExternalQueueJob(JobRequest {
@@ -44,6 +45,7 @@ impl ChannelManager for PlayerObject {
 
 
     }
+    /// Join Voice Channel
     async fn join_channel(&mut self, voice_channel_id: String) {
 
         self.bg_com_tx.send(IPCData::new_from_main(Message::DirectWorkerCommunication(DirectWorkerCommunication {
@@ -60,6 +62,7 @@ impl ChannelManager for PlayerObject {
         }), self.tx.clone(),self.guild_id.clone())).unwrap();
 
     }
+    /// Exit voice channel
     async fn exit_channel(&self) {
         self.bg_com_tx.send(IPCData::new_from_main(Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
@@ -76,3 +79,4 @@ impl ChannelManager for PlayerObject {
 
     }
 }
+

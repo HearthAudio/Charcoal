@@ -1,14 +1,10 @@
 //! Charcoal is a client-library for Hearth that makes it easy to use Hearth with Rust.
-//! See Examples in the Github repo in the sub-folder examples/
+//! See Examples in the Github repo [here](https://github.com/Hearth-Industries/Charcoal/tree/main/examples)
 use std::collections::HashMap;
 use std::sync::{Arc};
-use futures::SinkExt;
-use hearth_interconnect::messages::Message;
-use hearth_interconnect::worker_communication::DWCActionType;
 use kafka::consumer::Consumer;
 use kafka::producer::Producer;
 use lazy_static::lazy_static;
-use log::{debug, error};
 use tokio::sync::{broadcast, Mutex};
 use tokio::sync::broadcast::{Receiver, Sender};
 use crate::background::processor::{init_processor, IPCData};
@@ -64,14 +60,21 @@ impl Charcoal {
     }
 }
 
+/// Stores SSL Config for Kafka
 pub struct SSLConfig {
+    /// Path to the SSL key file
     pub ssl_key: String,
+    /// Path to the SSL CA file
     pub ssl_ca: String,
+    /// Path to the SSL cert file
     pub ssl_cert: String,
 }
 
+/// Configuration for charcoal
 pub struct CharcoalConfig {
+    /// Configure SSl for kafka. If left as None no SSL is configured
     pub ssl: Option<SSLConfig>,
+    /// Kafka topic to connect to. This should be the same one the hearth server(s) are on.
     pub kafka_topic: String
 }
 
