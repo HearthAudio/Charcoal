@@ -5,6 +5,7 @@ use hearth_interconnect::messages::{Message, Metadata};
 use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
 use log::{debug, error};
 use nanoid::nanoid;
+use tokio::time::sleep;
 use crate::{CONSUMER, PlayerObject, PRODUCER};
 use crate::background::processor::IPCData;
 use crate::connector::{send_message};
@@ -174,6 +175,7 @@ impl TrackManager for PlayerObject {
                 },
                 Err(e) => debug!("Failed to receive message with error on main thread QRX: {}",e),
             }
+            sleep(Duration::from_millis(100)).await; // Don't max out the CPU
         };
         return result;
     }

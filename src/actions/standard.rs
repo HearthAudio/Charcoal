@@ -1,9 +1,11 @@
 //! Standard actions that can be called on a PlayerObject
 use std::sync::Arc;
+use std::time::Duration;
 use async_fn_traits::{AsyncFn2, AsyncFn3};
 use hearth_interconnect::errors::ErrorReport;
 use log::error;
 use serenity::http::Http;
+use tokio::time::sleep;
 use crate::background::processor::IPCData;
 use crate::PlayerObject;
 
@@ -14,7 +16,6 @@ impl PlayerObject {
     {
         let mut t_rx = self.tx.subscribe();
         let guild_id = self.guild_id.clone();
-        println!("ERROR C REG");
         tokio::spawn(async move {
             loop {
                 let x = t_rx.try_recv();
@@ -38,6 +39,7 @@ impl PlayerObject {
                         }
                     }
                 }
+                sleep(Duration::from_millis(250)).await; // Don't max out the CPU
             }
         });
     }

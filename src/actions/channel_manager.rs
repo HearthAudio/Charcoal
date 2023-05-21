@@ -1,4 +1,5 @@
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use hearth_interconnect::messages::{JobRequest, Message};
 use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
 use log::{debug, error};
@@ -6,6 +7,7 @@ use nanoid::nanoid;
 use crate::{CONSUMER, PlayerObject, PRODUCER};
 use async_trait::async_trait;
 use hearth_interconnect::errors::ErrorReport;
+use tokio::time::sleep;
 use crate::background::processor::IPCData;
 use crate::connector::{send_message};
 
@@ -27,6 +29,8 @@ impl ChannelManager for PlayerObject {
             guild_id: self.guild_id.clone(),
         }), self.tx.clone(), self.guild_id.clone())).unwrap();
 
+
+        // This is a bit shit but for some reason if we try and recv().await here instead of try_recv() we dont get any messages
         loop {
             let res = self.rx.try_recv();
             match res {
@@ -41,6 +45,7 @@ impl ChannelManager for PlayerObject {
                 },
                 Err(e) => debug!("Failed to receive message with error on main thread QRX: {}",e),
             }
+            sleep(Duration::from_millis(100)).await; // Don't max out the CPU
         }
 
 

@@ -62,37 +62,7 @@ pub fn initialize_client(brokers: &Vec<String>,config: &CharcoalConfig) -> Kafka
             drop(client);
             process::exit(1);
         }
-        Ok(_) => {
-            // ~ at this point we have successfully loaded
-            // metadata via a secured connection to one of the
-            // specified brokers
-
-            if client.topics().len() == 0 {
-                warn!("No topics available!");
-            } else {
-                // ~ now let's communicate with all the brokers in
-                // the cluster our topics are spread over
-
-                let topics: Vec<String> = client.topics().names().map(Into::into).collect();
-                match client.fetch_offsets(topics.as_slice(), FetchOffset::Latest) {
-                    Err(e) => {
-                        error!("{:?}", e);
-                        drop(client);
-                        process::exit(1);
-                    }
-                    Ok(toffsets) => {
-                        debug!("Topic offsets:");
-                        for (topic, mut offs) in toffsets {
-                            offs.sort_by_key(|x| x.partition);
-                            debug!("{}", topic);
-                            for off in offs {
-                                debug!("\t{}: {:?}", off.partition, off.offset);
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        Ok(_) => {}
     }
     return client;
 }
