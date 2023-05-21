@@ -58,7 +58,6 @@ pub async fn init_processor(mut rx: Receiver<IPCData>, mut global_tx: Sender<IPC
                 let parsed_message : Result<Message,serde_json::Error> = serde_json::from_slice(m.value);
                 match parsed_message {
                     Ok(message) => {
-                        println!("DAT:{:?}",message);
                         match &message {
                             Message::ErrorReport(e) => {
                                 error!("GOT Error: {:?} From Hearth Server",e);
@@ -129,7 +128,6 @@ pub async fn init_processor(mut rx: Receiver<IPCData>, mut global_tx: Sender<IPC
             Ok(d) => {
                 match d {
                     IPCData::FromMain(m) => {
-                        println!("RECV FM: {:?}",m);
                         guild_id_to_tx.insert(m.guild_id,m.response_tx);
                         send_message(&m.message,"communication",&mut producer);
                     }

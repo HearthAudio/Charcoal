@@ -45,7 +45,7 @@ impl EventHandler for Handler {
 }
 
 #[group]
-#[commands(join, leave, play, ping,metadata,loopforever,pause,resume)]
+#[commands(join, leave, play, ping,metadata,loopforever,pause,resume,youtube,volume,stoploop,looptimes,position)]
 struct General;
 
 async fn report_error(error_report: ErrorReport,http: Arc<Http>,channel_id: String) {
@@ -274,14 +274,11 @@ async fn play(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     }
 
     let r = ctx.data.read().await;
-    println!("Getting manager");
     let guild = msg.guild(&ctx.cache).unwrap();
     let guild_id = guild.id;
-    println!("GET: {}",guild_id.to_string());
     let manager = r.get::<CharcoalKey>();
     let mut mx = manager.unwrap().lock().await;
     let handler =  mx.players.get_mut(&guild_id.to_string()).unwrap();
-    println!("GOT MANAGER");
 
 
     handler.play_from_http(url).await;
@@ -290,6 +287,141 @@ async fn play(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     Ok(())
 }
 
+#[command]
+#[only_in(guilds)]
+async fn youtube(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+    let url = match args.single::<String>() {
+        Ok(url) => url,
+        Err(_) => {
+            check_msg(msg.channel_id.say(&ctx.http, "Must provide a URL to a video or audio").await);
+
+            return Ok(());
+        },
+    };
+
+    if !url.starts_with("http") {
+        check_msg(msg.channel_id.say(&ctx.http, "Must provide a valid URL").await);
+
+        return Ok(());
+    }
+
+    let r = ctx.data.read().await;
+    let guild = msg.guild(&ctx.cache).unwrap();
+    let guild_id = guild.id;
+    let manager = r.get::<CharcoalKey>();
+    let mut mx = manager.unwrap().lock().await;
+    let handler =  mx.players.get_mut(&guild_id.to_string()).unwrap();
+
+
+    handler.play_from_youtube(url).await;
+    check_msg(msg.channel_id.say(&ctx.http, "Playing song from YouTube").await);
+
+    Ok(())
+}
+
+#[command]
+#[only_in(guilds)]
+async fn volume(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+    let volume = match args.single::<f32>() {
+        Ok(url) => url,
+        Err(_) => {
+            check_msg(msg.channel_id.say(&ctx.http, "Must provide a URL to a video or audio").await);
+
+            return Ok(());
+        },
+    };
+
+    if volume >= 0.0 || volume <= 1.0 {
+        let r = ctx.data.read().await;
+        let guild = msg.guild(&ctx.cache).unwrap();
+        let guild_id = guild.id;
+        let manager = r.get::<CharcoalKey>();
+        let mut mx = manager.unwrap().lock().await;
+        let handler =  mx.players.get_mut(&guild_id.to_string()).unwrap();
+
+        handler.set_playback_volume(volume).await;
+
+        check_msg(msg.channel_id.say(&ctx.http, "Set volume").await);
+    } else {
+        check_msg(msg.channel_id.say(&ctx.http, "Volume must be between zero and one").await);
+    }
+
+    Ok(())
+}
+
+#[command]
+#[only_in(guilds)]
+async fn stoploop(ctx: &Context, msg: &Message) -> CommandResult {
+
+    let r = ctx.data.read().await;
+    let guild = msg.guild(&ctx.cache).unwrap();
+    let guild_id = guild.id;
+    let manager = r.get::<CharcoalKey>();
+    let mut mx = manager.unwrap().lock().await;
+    let handler =  mx.players.get_mut(&guild_id.to_string()).unwrap();
+
+
+    handler.force_stop_loop().await;
+
+    check_msg(msg.channel_id.say(&ctx.http, "Canceled Loop").await);
+
+    Ok(())
+}
+
+
+#[command]
+#[only_in(guilds)]
+async fn looptimes(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+    let times = match args.single::<usize>() {
+        Ok(times) => times,
+        Err(_) => {
+            check_msg(msg.channel_id.say(&ctx.http, "Must provide loop times").await);
+
+            return Ok(());
+        },
+    };
+
+    let r = ctx.data.read().await;
+    let guild = msg.guild(&ctx.cache).unwrap();
+    let guild_id = guild.id;
+    let manager = r.get::<CharcoalKey>();
+    let mut mx = manager.unwrap().lock().await;
+    let handler =  mx.players.get_mut(&guild_id.to_string()).unwrap();
+
+
+    handler.loop_x_times(times).await;
+
+    check_msg(msg.channel_id.say(&ctx.http, format!("Looping {} time(s)",times)).await);
+
+    Ok(())
+}
+
+#[command]
+#[only_in(guilds)]
+async fn position(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+    let position = match args.single::<u64>() {
+        Ok(position) => position,
+        Err(_) => {
+            check_msg(msg.channel_id.say(&ctx.http, "Must provide song position").await);
+
+            return Ok(());
+        },
+    };
+
+    let r = ctx.data.read().await;
+    let guild = msg.guild(&ctx.cache).unwrap();
+    let guild_id = guild.id;
+    let manager = r.get::<CharcoalKey>();
+    let mut mx = manager.unwrap().lock().await;
+    let handler =  mx.players.get_mut(&guild_id.to_string()).unwrap();
+
+
+    handler.seek_to_position(Duration::from_secs(position)).await;
+
+    check_msg(msg.channel_id.say(&ctx.http, "Seeking...").await);
+
+    Ok(())
+}
 
 /// Checks that a message successfully sent; if not, then logs why to stdout.
 fn check_msg(result: SerenityResult<Message>) {
