@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use hearth_interconnect::errors::ErrorReport;
 use tokio::time::sleep;
 use crate::background::processor::IPCData;
-use crate::connector::{send_message};
+use crate::connector::{boilerplate_parse_ipc, send_message};
 
 #[async_trait]
 /// Provides basic functionality to create a job on the hearth server, join a channel, and exit a channel
@@ -30,23 +30,16 @@ impl ChannelManager for PlayerObject {
         }), self.tx.clone(), self.guild_id.clone())).unwrap();
 
 
-        // This is a bit shit but for some reason if we try and recv().await here instead of try_recv() we dont get any messages
-        loop {
-            let res = self.rx.try_recv();
-            match res {
-                Ok(r) => {
-                    if let IPCData::FromBackground(bg) = r {
-                        if let Message::ExternalQueueJobResponse(q) = bg.message {
-                            self.job_id = Some(q.job_id);
-                            self.worker_id = Some(q.worker_id);
-                            break;
-                        }
-                    }
-                },
-                Err(e) => debug!("Failed to receive message with error on main thread QRX: {}",e),
+        boilerplate_parse_ipc(|msg| {
+            if let IPCData::FromBackground(bg) = msg {
+                if let Message::ExternalQueueJobResponse(q) = bg.message {
+                    self.job_id = Some(q.job_id);
+                    self.worker_id = Some(q.worker_id);
+                    return false;
+                }
             }
-            sleep(Duration::from_millis(100)).await; // Don't max out the CPU
-        }
+            return true;
+        },self.tx.subscribe()).await;
 
 
     }

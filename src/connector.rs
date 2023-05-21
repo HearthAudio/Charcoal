@@ -13,6 +13,9 @@ use kafka::producer::{Producer, Record, RequiredAcks};
 use log::{debug, error, info, warn};
 
 use openssl;
+use tokio::sync::broadcast::Receiver;
+use tokio::time::sleep;
+use crate::background::processor::IPCData;
 use crate::CharcoalConfig;
 
 
@@ -82,4 +85,23 @@ pub fn send_message(message: &Message, topic: &str, producer: &mut Producer) {
     // Send message to worker
     let data = serde_json::to_string(message).unwrap();
     producer.send(&Record::from_value(topic, data)).unwrap();
+}
+
+
+pub async fn boilerplate_parse_ipc<T>(mut ipc_parser: T, mut rx: Receiver<IPCData>) where
+    T: FnMut(IPCData) -> bool
+{
+    let mut run = true;
+    while run {
+        let rxm = rx.try_recv();
+        match rxm {
+            Ok(m) => {
+                run = ipc_parser(m);
+            },
+            Err(e) => {
+                error!("{}",e);
+            }
+        }
+        sleep(Duration::from_millis(150)).await;
+    }
 }

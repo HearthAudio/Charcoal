@@ -8,7 +8,7 @@ use nanoid::nanoid;
 use tokio::time::sleep;
 use crate::{CONSUMER, PlayerObject, PRODUCER};
 use crate::background::processor::IPCData;
-use crate::connector::{send_message};
+use crate::connector::{boilerplate_parse_ipc, send_message};
 
 #[async_trait]
 /// Provides functionality that can be used once you start playing a track such as: looping, pausing, and resuming.
@@ -161,22 +161,18 @@ impl TrackManager for PlayerObject {
             voice_channel_id: None
         }), self.tx.clone(), self.guild_id.clone())).unwrap();
 
-        let result : Metadata;
-        loop {
-            let res = self.rx.try_recv();
-            match res {
-                Ok(r) => {
-                    if let IPCData::FromBackground(bg) = r {
-                        if let Message::ExternalMetadataResult(m) = bg.message {
-                            result = m;
-                            break;
-                        }
-                    }
-                },
-                Err(e) => debug!("Failed to receive message with error on main thread QRX: {}",e),
+        let mut result: Option<Metadata> = None;
+
+        boilerplate_parse_ipc(|msg| {
+            if let IPCData::FromBackground(bg) = msg {
+                if let Message::ExternalMetadataResult(m) = bg.message {
+                    result = Some(m);
+                    return false
+                }
             }
-            sleep(Duration::from_millis(100)).await; // Don't max out the CPU
-        };
-        return result;
+            return true;
+        },self.tx.subscribe()).await;
+
+        return result.unwrap();
     }
 }
