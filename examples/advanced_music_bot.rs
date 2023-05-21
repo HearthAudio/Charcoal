@@ -1,11 +1,15 @@
 use std::env;
+use std::sync::Arc;
 use std::time::Duration;
+use hearth_interconnect::errors::ErrorReport;
 use log::error;
 
 
 // Import the `Context` to handle commands.
 use serenity::client::Context;
 use charcoal::serenity::{CharcoalKey, SerenityInit};
+use charcoal::background::processor::IPCData;
+
 
 use serenity::{
     async_trait,
@@ -21,6 +25,7 @@ use serenity::{
     prelude::GatewayIntents,
     Result as SerenityResult,
 };
+use serenity::http::Http;
 use tokio::time::sleep;
 
 
@@ -41,6 +46,10 @@ impl EventHandler for Handler {
 #[group]
 #[commands(join, leave, play, ping,metadata,loopforever,pause,resume)]
 struct General;
+
+async fn report_error(error_report: ErrorReport,http: Arc<Http>) {
+    check_msg(msg.channel_id.say(http, "Playing song").await);
+}
 
 #[tokio::main]
 async fn main() {
@@ -154,6 +163,7 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
     if manager.players.contains_key(&guild_id.to_string()) {
         let handler =  manager.players.get_mut(&guild_id.to_string()).unwrap();
         handler.join_channel(connect_to.to_string()).await;
+        handler.register_error_callback(report_error,ctx.http.clone());
     } else {
         // If we have not created the player create it and then join the channel
         let mut handler = PlayerObject::new(guild_id.to_string(),manager.tx.clone()).await;
@@ -179,7 +189,7 @@ async fn metadata(ctx: &Context, msg: &Message) -> CommandResult {
     match manager {
         Some(manager) => {
             let meta = manager.get_metadata().await;
-            println!("{:?}",meta.unwrap());
+            println!("{:?}",meta);
         },
         None => {
             error!("Failed to get manager!");

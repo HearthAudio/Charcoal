@@ -8,3 +8,4 @@ pub mod player;
 
 /// Provides functionality that can be used once you start playing a track such as: looping, pausing, and resuming.
 pub mod track_manager;
+pub mod standard;

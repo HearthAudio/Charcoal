@@ -2,7 +2,6 @@ use std::env;
 use std::time::Duration;
 use log::error;
 
-
 // Import the `Context` to handle commands.
 use serenity::client::Context;
 use charcoal::serenity::{CharcoalKey, SerenityInit};
@@ -21,6 +20,8 @@ use serenity::{
     prelude::GatewayIntents,
     Result as SerenityResult,
 };
+use serenity::prelude::TypeMap;
+use tokio::sync::RwLockReadGuard;
 use tokio::time::sleep;
 
 
@@ -39,11 +40,14 @@ impl EventHandler for Handler {
 }
 
 #[group]
-#[commands(join, leave, play, ping,metadata,loopforever)]
+#[commands(join, leave, play, ping,metadata,loopforever,pause,resume)]
 struct General;
 
 #[tokio::main]
 async fn main() {
+
+    env_logger::init();
+
 
     // Configure the client with your Discord bot token in the environment.
     let token = env::var("DISCORD_TOKEN")
@@ -72,12 +76,57 @@ async fn main() {
         .await
         .expect("Err creating client");
 
+
     tokio::spawn(async move {
         let _ = client.start().await.map_err(|why| println!("Client ended: {:?}", why));
     });
 
     tokio::signal::ctrl_c().await;
     println!("Received Ctrl-C, shutting down.");
+}
+
+#[command]
+#[only_in(guilds)]
+async fn pause(ctx: &Context, msg: &Message) -> CommandResult {
+    let r = ctx.data.read().await;
+
+    let guild = msg.guild(&ctx.cache).unwrap();
+    let guild_id = guild.id;
+    let mut manager = r.get::<CharcoalKey>().unwrap().lock().await;
+    let manager = manager.get_player(&guild_id.to_string());
+
+    match manager {
+        Some(manager) => {
+            manager.pause_playback().await;
+        },
+        None => {
+            error!("Failed to get manager!");
+        }
+    }
+
+    Ok(())
+}
+
+#[command]
+#[only_in(guilds)]
+async fn resume(ctx: &Context, msg: &Message) -> CommandResult {
+    let r = ctx.data.read().await;
+
+    let guild = msg.guild(&ctx.cache).unwrap();
+    let guild_id = guild.id;
+    let mut manager = r.get::<CharcoalKey>().unwrap().lock().await;
+    let manager = manager.get_player(&guild_id.to_string());
+
+    match manager {
+        Some(manager) => {
+            manager.resume_playback().await;
+        },
+        None => {
+            error!("Failed to get manager!");
+        }
+    }
+
+    Ok(())
 }
 
 
@@ -106,13 +155,13 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
     println!("Joining");
     if manager.players.contains_key(&guild_id.to_string()) {
         let handler =  manager.players.get_mut(&guild_id.to_string()).unwrap();
-        handler.join_channel(connect_to.to_string(),guild_id.to_string()).await;
+        handler.join_channel(connect_to.to_string()).await;
     } else {
         // If we have not created the player create it and then join the channel
-        let mut handler = PlayerObject::new(manager.tx.clone()).await;
+        let mut handler = PlayerObject::new(guild_id.to_string(),manager.tx.clone()).await;
         handler.create_job().await;
         // sleep(Duration::from_secs(1)).await;
-        handler.join_channel(connect_to.to_string(),guild_id.to_string()).await;
+        handler.join_channel(connect_to.to_string()).await;
         manager.players.insert(guild_id.to_string(), handler);
     }
 
@@ -132,7 +181,7 @@ async fn metadata(ctx: &Context, msg: &Message) -> CommandResult {
     match manager {
         Some(manager) => {
             let meta = manager.get_metadata().await;
-            println!("{:?}",meta.unwrap());
+            println!("{:?}",meta);
         },
         None => {
             error!("Failed to get manager!");

@@ -16,7 +16,7 @@ use crate::connector::{initialize_client, initialize_producer};
 mod connector;
 pub mod actions;
 pub mod serenity;
-pub(crate) mod background;
+pub mod background;
 
 lazy_static! {
     pub(crate) static ref PRODUCER: Mutex<Option<Producer>> = Mutex::new(None);
@@ -55,6 +55,7 @@ impl PlayerObject {
 pub struct Charcoal {
     pub players: HashMap<String,PlayerObject>, // Guild ID to PlayerObject
     pub tx: Sender<IPCData>,
+    pub rx: Receiver<IPCData>
 }
 
 impl Charcoal {
@@ -87,22 +88,18 @@ pub async fn init_charcoal(broker: String,config: CharcoalConfig) -> Arc<Mutex<C
 
     let producer : Producer = initialize_producer(initialize_client(&brokers,&config));
 
-    // *PRODUCER.lock().await = Some(producer);
-    // *CONSUMER.lock().await = Some(consumer);
-
     let (tx, mut rx) = broadcast::channel(16);
 
     let sub_tx = tx.clone();
-
-    // let c_rx = Arc::new(Mutex::new(sub_tx.subscribe()));
-    // let mut q_rx = tx.subscribe();
+    let global_rx = tx.subscribe();
 
     tokio::task::spawn(async move {
         init_processor(rx,sub_tx,consumer,producer).await;
     });
 
-    return Arc::new(Mutex::new(Charcoal {
+    Arc::new(Mutex::new(Charcoal {
         players: HashMap::new(),
         tx,
-    }));
+        rx: global_rx
+    }))
 }

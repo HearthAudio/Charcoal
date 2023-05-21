@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use hearth_interconnect::errors::ErrorReport;
 use hearth_interconnect::messages::Message;
 use kafka::consumer::Consumer;
 use kafka::producer::Producer;
@@ -23,7 +24,8 @@ pub struct FromMainData {
 #[derive(Clone,Debug)]
 pub enum IPCData {
     FromBackground(FromBackgroundData),
-    FromMain(FromMainData)
+    FromMain(FromMainData),
+    ErrorReport(ErrorReport)
 }
 
 // Makes things slightly easier
@@ -42,7 +44,7 @@ impl IPCData {
     }
 }
 
-pub async fn init_processor(mut rx: Receiver<IPCData>, mut tx: Sender<IPCData>, mut consumer: Consumer,mut producer: Producer) {
+pub async fn init_processor(mut rx: Receiver<IPCData>, mut global_tx: Sender<IPCData>, mut consumer: Consumer,mut producer: Producer) {
 
     let mut guild_id_to_tx: HashMap<String,Arc<Sender<IPCData>>> = HashMap::new();
     loop {
@@ -60,10 +62,24 @@ pub async fn init_processor(mut rx: Receiver<IPCData>, mut tx: Sender<IPCData>, 
                         match &message {
                             Message::ErrorReport(e) => {
                                 error!("GOT Error: {:?} From Hearth Server",e);
-                                //TODO: Publish to event stream
+                                let tx = guild_id_to_tx.get_mut(&e.guild_id);
+                                match tx {
+                                    Some(tx) => {
+                                        let gt = tx.send(IPCData::ErrorReport(e.clone()));
+                                        match gt {
+                                            Ok(_) => {},
+                                            Err(e) => {
+                                                error!("Failed to send error report with error: {:?}",e);
+                                            }
+                                        }
+                                    },
+                                    None => {
+                                        error!("Failed to get appropriate sender when attempting to send error report")
+                                    }
+                                }
                             },
                             Message::ExternalQueueJobResponse(r) => {
-                                let mut tx = guild_id_to_tx.get_mut(&r.guild_id);
+                                let tx = guild_id_to_tx.get_mut(&r.guild_id);
                                 match tx {
                                     Some(tx) => {
                                         let r = tx.send(IPCData::new_from_background(message));

@@ -54,6 +54,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "async_fn_traits"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc58d489c5f2d2c5be31b9004cec7af25a70d23df4d8111715eee736234cf217"
+dependencies = [
+ "paste",
+]
+
+[[package]]
 name = "atty"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -132,6 +141,7 @@ name = "charcoal"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "async_fn_traits",
  "env_logger",
  "fern",
  "futures",
@@ -501,7 +511,7 @@ checksum = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888"
 [[package]]
 name = "hearth-interconnect"
 version = "0.1.0"
-source = "git+https://github.com/Hearth-Industries/hearth-interconnect.git#966889f45d98f3854154cf6602b1bc924f9f35f7"
+source = "git+https://github.com/Hearth-Industries/hearth-interconnect.git#8789e0192ae126d689c9422f319708c314210788"
 dependencies = [
  "schemars",
  "serde",
@@ -921,6 +931,12 @@ dependencies = [
  "smallvec",
  "windows-sys 0.45.0",
 ]
+
+[[package]]
+name = "paste"
+version = "1.0.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f746c4065a8fa3fe23974dd82f15431cc8d40779821001404d10d2e79ca7d79"
 
 [[package]]
 name = "percent-encoding"

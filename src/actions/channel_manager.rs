@@ -5,6 +5,7 @@ use log::{debug, error};
 use nanoid::nanoid;
 use crate::{CONSUMER, PlayerObject, PRODUCER};
 use async_trait::async_trait;
+use hearth_interconnect::errors::ErrorReport;
 use crate::background::processor::IPCData;
 use crate::connector::{send_message};
 
@@ -72,6 +73,6 @@ impl ChannelManager for PlayerObject {
             worker_id: self.worker_id.clone().unwrap(),
             voice_channel_id: None,
         }), self.tx.clone(),self.guild_id.clone())).unwrap();
-        
+
     }
 }
