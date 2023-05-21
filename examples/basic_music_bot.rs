@@ -27,7 +27,7 @@ use tokio::time::sleep;
 
 use charcoal::actions::channel_manager::ChannelManager;
 use charcoal::actions::player::Player;
-use charcoal::{CharcoalConfig, PlayerObject, SSLConfig};
+use charcoal::{CharcoalConfig, get_player_object_from_serenity_context, PlayerObject, SSLConfig};
 use charcoal::actions::track_manager::TrackManager;
 
 struct Handler;
@@ -66,12 +66,13 @@ async fn main() {
         .framework(framework)
         // Add a Kafka URL here to connect to the broker
         .register_charcoal("kafka-185690f4-maxall4-aea3.aivencloud.com:23552".to_string(),CharcoalConfig {
+            // Configure SSL to connect to kafka. If set to None no SSL is configured for Kafka
             ssl: Some(SSLConfig {
                 ssl_ca: "ca.pem".to_string(),
                 ssl_cert: "service.cert".to_string(),
                 ssl_key: "service.key".to_string()
             }),
-            kafka_topic: "communication".to_string()
+            kafka_topic: "communication".to_string() // The topic to connect to. Should be the same one as the hearth server(s)
         })
         .await
         .expect("Err creating client");
@@ -88,12 +89,7 @@ async fn main() {
 #[command]
 #[only_in(guilds)]
 async fn pause(ctx: &Context, msg: &Message) -> CommandResult {
-    let r = ctx.data.read().await;
-
-    let guild = msg.guild(&ctx.cache).unwrap();
-    let guild_id = guild.id;
-    let mut manager = r.get::<CharcoalKey>().unwrap().lock().await;
-    let manager = manager.get_player(&guild_id.to_string());
+    let manager = get_player_object_from_serenity_context!(ctx,msg);
 
     match manager {
         Some(manager) => {
@@ -110,12 +106,7 @@ async fn pause(ctx: &Context, msg: &Message) -> CommandResult {
 #[command]
 #[only_in(guilds)]
 async fn resume(ctx: &Context, msg: &Message) -> CommandResult {
-    let r = ctx.data.read().await;
-
-    let guild = msg.guild(&ctx.cache).unwrap();
-    let guild_id = guild.id;
-    let mut manager = r.get::<CharcoalKey>().unwrap().lock().await;
-    let manager = manager.get_player(&guild_id.to_string());
+    let manager = get_player_object_from_serenity_context!(ctx,msg);
 
     match manager {
         Some(manager) => {
@@ -148,6 +139,7 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
             return Ok(());
         }
     };
+
     let r = ctx.data.write().await;
     let mut manager = r.get::<CharcoalKey>().unwrap().lock().await;
 
@@ -160,7 +152,6 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
         // If we have not created the player create it and then join the channel
         let mut handler = PlayerObject::new(guild_id.to_string(),manager.tx.clone()).await;
         handler.create_job().await;
-        // sleep(Duration::from_secs(1)).await;
         handler.join_channel(connect_to.to_string()).await;
         manager.players.insert(guild_id.to_string(), handler);
     }
@@ -171,12 +162,7 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
 #[command]
 #[only_in(guilds)]
 async fn metadata(ctx: &Context, msg: &Message) -> CommandResult {
-    let r = ctx.data.read().await;
-
-    let guild = msg.guild(&ctx.cache).unwrap();
-    let guild_id = guild.id;
-    let mut manager = r.get::<CharcoalKey>().unwrap().lock().await;
-    let manager = manager.get_player(&guild_id.to_string());
+    let manager = get_player_object_from_serenity_context!(ctx,msg);
 
     match manager {
         Some(manager) => {
@@ -194,12 +180,7 @@ async fn metadata(ctx: &Context, msg: &Message) -> CommandResult {
 #[command]
 #[only_in(guilds)]
 async fn loopforever(ctx: &Context, msg: &Message) -> CommandResult {
-    let r = ctx.data.read().await;
-
-    let guild = msg.guild(&ctx.cache).unwrap();
-    let guild_id = guild.id;
-    let mut manager = r.get::<CharcoalKey>().unwrap().lock().await;
-    let manager = manager.get_player(&guild_id.to_string());
+    let manager = get_player_object_from_serenity_context!(ctx,msg);
     match manager {
         Some(manager) => {
             let meta = manager.loop_indefinitely().await;
@@ -284,3 +265,4 @@ fn check_msg(result: SerenityResult<Message>) {
         println!("Error sending message: {:?}", why);
     }
 }
+

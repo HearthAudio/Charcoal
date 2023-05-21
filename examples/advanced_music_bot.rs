@@ -99,13 +99,12 @@ async fn main() {
 #[only_in(guilds)]
 async fn pause(ctx: &Context, msg: &Message) -> CommandResult {
     let r = ctx.data.read().await;
-
     let guild = msg.guild(&ctx.cache).unwrap();
     let guild_id = guild.id;
     let mut manager = r.get::<CharcoalKey>().unwrap().lock().await;
-    let manager = manager.get_player(&guild_id.to_string());
+    let handler = manager.get_player(&guild_id.to_string());
 
-    match manager {
+    match handler {
         Some(manager) => {
             manager.pause_playback().await;
         },
@@ -120,21 +119,14 @@ async fn pause(ctx: &Context, msg: &Message) -> CommandResult {
 #[command]
 #[only_in(guilds)]
 async fn resume(ctx: &Context, msg: &Message) -> CommandResult {
-    let r = ctx.data.read().await;
 
+    let r = ctx.data.read().await;
     let guild = msg.guild(&ctx.cache).unwrap();
     let guild_id = guild.id;
     let mut manager = r.get::<CharcoalKey>().unwrap().lock().await;
-    let manager = manager.get_player(&guild_id.to_string());
+    let handler = manager.get_player(&guild_id.to_string());
 
-    match manager {
-        Some(manager) => {
-            manager.resume_playback().await;
-        },
-        None => {
-            error!("Failed to get manager!");
-        }
-    }
+    handler.resume_playback().await;
 
     Ok(())
 }
@@ -185,21 +177,14 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
 #[only_in(guilds)]
 async fn metadata(ctx: &Context, msg: &Message) -> CommandResult {
     let r = ctx.data.read().await;
-
     let guild = msg.guild(&ctx.cache).unwrap();
     let guild_id = guild.id;
     let mut manager = r.get::<CharcoalKey>().unwrap().lock().await;
-    let manager = manager.get_player(&guild_id.to_string());
+    let handler = manager.get_player(&guild_id.to_string());
 
-    match manager {
-        Some(manager) => {
-            let meta = manager.get_metadata().await;
-            println!("{:?}",meta);
-        },
-        None => {
-            error!("Failed to get manager!");
-        }
-    }
+    let meta = handler.get_metadata().await;
+
+    check_msg(msg.reply(ctx, format!("{:?}",meta)).await);
 
     Ok(())
 }
@@ -208,19 +193,20 @@ async fn metadata(ctx: &Context, msg: &Message) -> CommandResult {
 #[only_in(guilds)]
 async fn loopforever(ctx: &Context, msg: &Message) -> CommandResult {
     let r = ctx.data.read().await;
-
     let guild = msg.guild(&ctx.cache).unwrap();
     let guild_id = guild.id;
     let mut manager = r.get::<CharcoalKey>().unwrap().lock().await;
-    let manager = manager.get_player(&guild_id.to_string());
-    match manager {
-        Some(manager) => {
-            let meta = manager.loop_indefinitely().await;
+    let handler = manager.get_player(&guild_id.to_string());
+
+    match handler {
+        Some(handler) => {
+            handler.loop_indefinitely().await;
         },
         None => {
             error!("Failed to get manager!");
         }
-    }
+    };
+
 
 
     Ok(())
@@ -230,20 +216,20 @@ async fn loopforever(ctx: &Context, msg: &Message) -> CommandResult {
 #[only_in(guilds)]
 async fn leave(ctx: &Context, msg: &Message) -> CommandResult {
     let r = ctx.data.read().await;
-
     let guild = msg.guild(&ctx.cache).unwrap();
     let guild_id = guild.id;
     let mut manager = r.get::<CharcoalKey>().unwrap().lock().await;
-    let manager = manager.get_player(&guild_id.to_string());
+    let handler = manager.get_player(&guild_id.to_string());
 
-    match manager {
-        Some(manager) => {
-            manager.exit_channel().await;
+
+    match handler {
+        Some(handler) => {
+            handler.exit_channel().await;
         },
         None => {
             error!("Failed to get manager!");
         }
-    }
+    };
 
     Ok(())
 }
@@ -276,13 +262,18 @@ async fn play(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     let r = ctx.data.read().await;
     let guild = msg.guild(&ctx.cache).unwrap();
     let guild_id = guild.id;
-    let manager = r.get::<CharcoalKey>();
-    let mut mx = manager.unwrap().lock().await;
-    let handler =  mx.players.get_mut(&guild_id.to_string()).unwrap();
+    let mut manager = r.get::<CharcoalKey>().unwrap().lock().await;
+    let handler = manager.get_player(&guild_id.to_string());
 
-
-    handler.play_from_http(url).await;
-    check_msg(msg.channel_id.say(&ctx.http, "Playing song").await);
+    match handler {
+        Some(handler) => {
+            handler.play_from_http(url).await;
+            check_msg(msg.channel_id.say(&ctx.http, "Playing song from HTTP URL").await);
+        },
+        None => {
+            error!("No handler found!");
+        }
+    }
 
     Ok(())
 }
@@ -308,13 +299,18 @@ async fn youtube(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
     let r = ctx.data.read().await;
     let guild = msg.guild(&ctx.cache).unwrap();
     let guild_id = guild.id;
-    let manager = r.get::<CharcoalKey>();
-    let mut mx = manager.unwrap().lock().await;
-    let handler =  mx.players.get_mut(&guild_id.to_string()).unwrap();
+    let mut manager = r.get::<CharcoalKey>().unwrap().lock().await;
+    let handler = manager.get_player(&guild_id.to_string());
 
-
-    handler.play_from_youtube(url).await;
-    check_msg(msg.channel_id.say(&ctx.http, "Playing song from YouTube").await);
+    match handler {
+        Some(handler) => {
+            handler.play_from_youtube(url).await;
+            check_msg(msg.channel_id.say(&ctx.http, "Playing song from YouTube").await);
+        },
+        None => {
+            error!("No handler found!");
+        }
+    }
 
     Ok(())
 }
@@ -335,13 +331,19 @@ async fn volume(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
         let r = ctx.data.read().await;
         let guild = msg.guild(&ctx.cache).unwrap();
         let guild_id = guild.id;
-        let manager = r.get::<CharcoalKey>();
-        let mut mx = manager.unwrap().lock().await;
-        let handler =  mx.players.get_mut(&guild_id.to_string()).unwrap();
+        let mut manager = r.get::<CharcoalKey>().unwrap().lock().await;
+        let handler = manager.get_player(&guild_id.to_string());
 
-        handler.set_playback_volume(volume).await;
+        match handler {
+            Some(handler) => {
+                handler.set_playback_volume(volume).await;
 
-        check_msg(msg.channel_id.say(&ctx.http, "Set volume").await);
+                check_msg(msg.channel_id.say(&ctx.http, format!("Set volume to {}",volume)).await);
+            },
+            None => {
+                error!("No handler found!");
+            }
+        }
     } else {
         check_msg(msg.channel_id.say(&ctx.http, "Volume must be between zero and one").await);
     }
@@ -352,18 +354,21 @@ async fn volume(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 #[command]
 #[only_in(guilds)]
 async fn stoploop(ctx: &Context, msg: &Message) -> CommandResult {
-
     let r = ctx.data.read().await;
     let guild = msg.guild(&ctx.cache).unwrap();
     let guild_id = guild.id;
-    let manager = r.get::<CharcoalKey>();
-    let mut mx = manager.unwrap().lock().await;
-    let handler =  mx.players.get_mut(&guild_id.to_string()).unwrap();
+    let mut manager = r.get::<CharcoalKey>().unwrap().lock().await;
+    let handler = manager.get_player(&guild_id.to_string());
 
-
-    handler.force_stop_loop().await;
-
-    check_msg(msg.channel_id.say(&ctx.http, "Canceled Loop").await);
+    match handler {
+        Some(handler) => {
+            handler.force_stop_loop().await;
+            check_msg(msg.channel_id.say(&ctx.http, "Canceled Loop").await);
+        },
+        None => {
+            error!("Failed to get manager!");
+        }
+    };
 
     Ok(())
 }
@@ -384,12 +389,17 @@ async fn looptimes(ctx: &Context, msg: &Message, mut args: Args) -> CommandResul
     let r = ctx.data.read().await;
     let guild = msg.guild(&ctx.cache).unwrap();
     let guild_id = guild.id;
-    let manager = r.get::<CharcoalKey>();
-    let mut mx = manager.unwrap().lock().await;
-    let handler =  mx.players.get_mut(&guild_id.to_string()).unwrap();
+    let mut manager = r.get::<CharcoalKey>().unwrap().lock().await;
+    let handler = manager.get_player(&guild_id.to_string());
 
-
-    handler.loop_x_times(times).await;
+    match handler {
+        Some(handler) => {
+            handler.loop_x_times(times).await;
+        },
+        None => {
+            error!("Failed to get manager!");
+        }
+    };
 
     check_msg(msg.channel_id.say(&ctx.http, format!("Looping {} time(s)",times)).await);
 
@@ -411,12 +421,17 @@ async fn position(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
     let r = ctx.data.read().await;
     let guild = msg.guild(&ctx.cache).unwrap();
     let guild_id = guild.id;
-    let manager = r.get::<CharcoalKey>();
-    let mut mx = manager.unwrap().lock().await;
-    let handler =  mx.players.get_mut(&guild_id.to_string()).unwrap();
+    let mut manager = r.get::<CharcoalKey>().unwrap().lock().await;
+    let handler = manager.get_player(&guild_id.to_string());
 
-
-    handler.seek_to_position(Duration::from_secs(position)).await;
+    match handler {
+        Some(handler) => {
+            handler.seek_to_position(Duration::from_secs(position)).await;
+        },
+        None => {
+            error!("Failed to get manager!");
+        }
+    };
 
     check_msg(msg.channel_id.say(&ctx.http, "Seeking...").await);
 
@@ -429,3 +444,4 @@ fn check_msg(result: SerenityResult<Message>) {
         println!("Error sending message: {:?}", why);
     }
 }
+
