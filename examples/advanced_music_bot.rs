@@ -26,6 +26,7 @@ use serenity::{
     Result as SerenityResult,
 };
 use serenity::http::Http;
+use serenity::model::id::ChannelId;
 use tokio::time::sleep;
 
 
@@ -47,8 +48,10 @@ impl EventHandler for Handler {
 #[commands(join, leave, play, ping,metadata,loopforever,pause,resume)]
 struct General;
 
-async fn report_error(error_report: ErrorReport,http: Arc<Http>) {
-    check_msg(msg.channel_id.say(http, "Playing song").await);
+async fn report_error(error_report: ErrorReport,http: Arc<Http>,channel_id: String) {
+    let voice_channel_id = ChannelId::from(channel_id.parse::<u64>().unwrap());
+    let msg = voice_channel_id.say(http, format!("Action failed with error: {:?}",error_report.error)).await;
+    check_msg(msg);
 }
 
 #[tokio::main]
@@ -163,14 +166,16 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
     if manager.players.contains_key(&guild_id.to_string()) {
         let handler =  manager.players.get_mut(&guild_id.to_string()).unwrap();
         handler.join_channel(connect_to.to_string()).await;
-        handler.register_error_callback(report_error,ctx.http.clone());
+        handler.register_error_callback(report_error,ctx.http.clone(),msg.channel_id.to_string()).await;
     } else {
         // If we have not created the player create it and then join the channel
         let mut handler = PlayerObject::new(guild_id.to_string(),manager.tx.clone()).await;
+        handler.register_error_callback(report_error,ctx.http.clone(),msg.channel_id.to_string()).await;
         handler.create_job().await;
         // sleep(Duration::from_secs(1)).await;
         handler.join_channel(connect_to.to_string()).await;
         manager.players.insert(guild_id.to_string(), handler);
+
     }
 
     Ok(())
