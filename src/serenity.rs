@@ -28,3 +28,5 @@ impl SerenityInit for ClientBuilder {
         self.type_map_insert::<CharcoalKey>(executor::block_on(c))
     }
 }
+
+// pub use crate::serenity::ClientBuilder;
