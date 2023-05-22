@@ -12,7 +12,7 @@ use kafka;
 use kafka::consumer::Consumer;
 use kafka::producer::{Producer, Record, RequiredAcks};
 use log::{debug, error, info, warn};
-
+use snafu::prelude::*;
 use openssl;
 use tokio::sync::broadcast::error::TryRecvError;
 use tokio::sync::broadcast::Receiver;
@@ -20,8 +20,6 @@ use tokio::time::sleep;
 use crate::background::processor::IPCData;
 use crate::CharcoalConfig;
 use crate::helpers::get_unix_timestamp;
-
-
 use self::kafka::client::{FetchOffset, KafkaClient, SecurityConfig};
 use self::openssl::ssl::{SslConnector, SslFiletype, SslMethod, SslVerifyMode};
 
@@ -90,7 +88,14 @@ pub fn send_message(message: &Message, topic: &str, producer: &mut Producer) {
     producer.send(&Record::from_value(topic, data)).unwrap();
 }
 
-pub async fn boilerplate_parse_ipc<T>(mut ipc_parser: T, mut rx: Receiver<IPCData>,timeout: Duration) where
+#[derive(Debug, Snafu)]
+pub enum BoilerplateParseIPCError {
+    #[snafu(display("Did not receive requested IPC message within specified timeframe"))]
+    TimedOutWaitingForIPC { },
+}
+
+
+pub async fn boilerplate_parse_ipc<T>(mut ipc_parser: T, mut rx: Receiver<IPCData>,timeout: Duration) -> Result<(), BoilerplateParseIPCError> where
     T: FnMut(IPCData) -> bool
 {
     let start_time = get_unix_timestamp();
@@ -113,10 +118,9 @@ pub async fn boilerplate_parse_ipc<T>(mut ipc_parser: T, mut rx: Receiver<IPCDat
 
         // Handle timeouts
         let current_time = get_unix_timestamp();
-        if current_time.sub(start_time).as_millis() >= timeout.as_millis() {
-            break;
-        }
+        ensure!(current_time.sub(start_time).as_millis() < timeout.as_millis(),TimedOutWaitingForIPCSnafu);
         // Don't max out the CPU
         sleep(Duration::from_millis(150)).await;
     }
+    Ok(())
 }

@@ -13,15 +13,17 @@ use tokio::sync::{broadcast, Mutex, RwLock};
 use tokio::sync::broadcast::{Receiver, Sender};
 use tokio::sync::broadcast::error::TryRecvError;
 use tokio::time;
+use crate::actions::channel_manager::{ChannelManager, CreateJobError};
 use crate::background::processor::{FromBackgroundData, init_processor, IPCData};
 use crate::connector::{initialize_client, initialize_producer};
 use crate::constants::{EXPIRATION_LAGGED_BY_1, EXPIRATION_LAGGED_BY_2, EXPIRATION_LAGGED_BY_4};
 
-mod connector;
 pub mod actions;
 pub mod serenity;
 pub mod background;
 pub(crate) mod constants;
+mod helpers;
+use snafu::prelude::*;
 
 lazy_static! {
     pub(crate) static ref PRODUCER: Mutex<Option<Producer>> = Mutex::new(None);
@@ -40,19 +42,25 @@ pub struct PlayerObject {
     bg_com_tx: Sender<IPCData>
 }
 
+
 impl PlayerObject {
     /// Creates a new Player Object that can then be joined to channel and used to playback audio
-    pub async fn new(guild_id: String,com_tx: Sender<IPCData>) -> Self {
+    pub async fn new(guild_id: String,com_tx: Sender<IPCData>) -> Result<Self,CreateJobError> {
         let (tx, mut rx) = broadcast::channel(16);
 
-        PlayerObject {
+        let mut handler = PlayerObject {
             worker_id: None,
             job_id: None,
             guild_id,
             tx: Arc::new(tx),
             rx: rx,
             bg_com_tx: com_tx
-        }
+        };
+
+        // Create the player job on the Hearth server
+        handler.create_job().await?;
+
+        Ok(handler)
     }
 }
 

@@ -177,27 +177,30 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
     // Stored inside of the Charcoal Instance.
     // If we have already created the player just join the channel
     if mx.players.read().await.contains_key(&guild_id.to_string()) {
+        // Get a write lock on the players HashMap
         let mut players = mx.players.write().await;
-        let handler =  players.get_mut(&guild_id.to_string());
-        match handler {
-            Some(handler) => {
-                handler.join_channel(connect_to.to_string()).await;
-                handler.register_error_callback(report_error,ctx.http.clone(),msg.channel_id.to_string()).await;
-            },
-            None => {}
-        }
+        // Get a mutable reference to said player
+        let handler =  players.get_mut(&guild_id.to_string()).expect("This should never happen because we checked the key exists in the if check above");
+        // Join the channel
+        handler.join_channel(connect_to.to_string()).await;
     } else {
         // If we have not created the player create it and then join the channel
         let mut handler = PlayerObject::new(guild_id.to_string(),mx.tx.clone()).await;
-        // Register an error callback so errors from the hearth server can be reported back to us
-        handler.register_error_callback(report_error,ctx.http.clone(),msg.channel_id.to_string()).await;
-        // Create the player job on the Hearth server
-        handler.create_job().await;
-        // Join the channel
-        handler.join_channel(connect_to.to_string()).await;
-        // Insert the newly created PlayerObject into the HashMap so we can use it later
-        mx.players.write().await.insert(guild_id.to_string(), handler);
-
+        // Make sure creating the PlayerObject worked
+        match handler {
+            Ok(mut handler) => {
+                // Register an error callback so errors from the hearth server can be reported back to us
+                handler.register_error_callback(report_error,ctx.http.clone(),msg.channel_id.to_string()).await;
+                // Join the channel
+                handler.join_channel(connect_to.to_string()).await;
+                // Insert the newly created PlayerObject into the HashMap so we can use it later
+                mx.players.write().await.insert(guild_id.to_string(), handler);
+            },
+            Err(e) => {
+                // If creating the job failed send an error message
+                check_msg(msg.channel_id.say(&ctx.http, format!("Failed to register PlayerObject with error: {}",e)).await);
+            }
+        }
     }
 
     Ok(())
