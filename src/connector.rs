@@ -13,6 +13,7 @@ use kafka::producer::{Producer, Record, RequiredAcks};
 use log::{debug, error, info, warn};
 
 use openssl;
+use tokio::sync::broadcast::error::TryRecvError;
 use tokio::sync::broadcast::Receiver;
 use tokio::time::sleep;
 use crate::background::processor::IPCData;
@@ -99,7 +100,12 @@ pub async fn boilerplate_parse_ipc<T>(mut ipc_parser: T, mut rx: Receiver<IPCDat
                 run = ipc_parser(m);
             },
             Err(e) => {
-                error!("{}",e);
+                match e {
+                    TryRecvError::Empty => { }
+                    _ => {
+                        error!("{}",e);
+                    }
+                }
             }
         }
         sleep(Duration::from_millis(150)).await;

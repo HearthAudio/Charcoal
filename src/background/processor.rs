@@ -139,7 +139,7 @@ pub async fn init_processor(mut rx: Receiver<IPCData>, mut global_tx: Sender<IPC
                 if e.to_string() == "channel empty" {
                     debug!("Channel empty!");
                 } else {
-                    error!("{}",e);
+                    error!("Receive failed with: {}",e);
                 }
             }
         }

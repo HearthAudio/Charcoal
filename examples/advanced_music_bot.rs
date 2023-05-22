@@ -216,6 +216,7 @@ async fn loopforever(ctx: &Context, msg: &Message) -> CommandResult {
     match manager {
         Some(manager) => {
             let meta = manager.loop_indefinitely().await;
+            check_msg(msg.channel_id.say(&ctx.http, "Looping forever!").await);
         },
         None => {
             error!("Failed to get manager!");
