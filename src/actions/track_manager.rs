@@ -7,32 +7,42 @@ use log::{debug, error};
 use nanoid::nanoid;
 use tokio::time::sleep;
 use crate::{CONSUMER, PlayerObject, PRODUCER};
+use crate::background::connector::{boilerplate_parse_ipc, BoilerplateParseIPCError};
 use crate::background::processor::IPCData;
-use crate::connector::{boilerplate_parse_ipc, send_message};
+use snafu::prelude::*;
+use tokio::sync::broadcast::error::SendError;
+
+#[derive(Debug, Snafu)]
+pub enum TrackActionError {
+    #[snafu(display("Failed to send IPC request to Background thread"))]
+    FailedToSendIPCRequest { source: SendError<IPCData> },
+    #[snafu(display("Did not receive metadata result within timeout time-frame"))]
+    TimedOutWaitingForMetadataResult { source: BoilerplateParseIPCError },
+}
 
 #[async_trait]
 /// Provides functionality that can be used once you start playing a track such as: looping, pausing, and resuming.
 pub trait TrackManager {
     /// Set playback volume
-    async fn set_playback_volume(&self,playback_volume: f32);
+    async fn set_playback_volume(&self,playback_volume: f32) -> Result<(),TrackActionError>;
     /// Stop looping
-    async fn force_stop_loop(&self);
+    async fn force_stop_loop(&self) -> Result<(),TrackActionError>;
     /// Loop forever
-    async fn loop_indefinitely(&self);
+    async fn loop_indefinitely(&self) -> Result<(),TrackActionError>;
     /// Loop X amount of times
-    async fn loop_x_times(&self,times: usize);
+    async fn loop_x_times(&self,times: usize) -> Result<(),TrackActionError>;
     /// Seek to position on track from start
-    async fn seek_to_position(&self,position: Duration);
+    async fn seek_to_position(&self,position: Duration) -> Result<(),TrackActionError>;
     /// Resume playback
-    async fn resume_playback(&self);
+    async fn resume_playback(&self) -> Result<(),TrackActionError>;
     /// Pause playback
-    async fn pause_playback(&self);
+    async fn pause_playback(&self) -> Result<(),TrackActionError>;
     /// Get metadata for track currently being played
-    async fn get_metadata(&mut self) -> Metadata;
+    async fn get_metadata(&mut self) -> Result<Metadata,TrackActionError>;
 }
 #[async_trait]
 impl TrackManager for PlayerObject {
-    async fn set_playback_volume(&self,playback_volume: f32) {
+    async fn set_playback_volume(&self,playback_volume: f32) -> Result<(),TrackActionError> {
 
         self.bg_com_tx.send(IPCData::new_from_main(Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
@@ -45,10 +55,11 @@ impl TrackManager for PlayerObject {
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
             voice_channel_id: None
-        }), self.tx.clone(), self.guild_id.clone())).unwrap();
+        }), self.tx.clone(), self.guild_id.clone())).context(FailedToSendIPCRequestSnafu)?;
+        Ok(())
         
     }
-    async fn force_stop_loop(&self) {
+    async fn force_stop_loop(&self) -> Result<(),TrackActionError> {
 
         self.bg_com_tx.send(IPCData::new_from_main(Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
@@ -61,11 +72,13 @@ impl TrackManager for PlayerObject {
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
             voice_channel_id: None
-        }), self.tx.clone(), self.guild_id.clone())).unwrap();
+        }), self.tx.clone(), self.guild_id.clone())).context(FailedToSendIPCRequestSnafu)?;
+
+        Ok(())
 
         
     }
-    async fn loop_indefinitely(&self) {
+    async fn loop_indefinitely(&self) -> Result<(),TrackActionError> {
 
         self.bg_com_tx.send(IPCData::new_from_main(Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
@@ -78,11 +91,13 @@ impl TrackManager for PlayerObject {
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
             voice_channel_id: None
-        }), self.tx.clone(), self.guild_id.clone())).unwrap();
+        }), self.tx.clone(), self.guild_id.clone())).context(FailedToSendIPCRequestSnafu)?;
+
+        Ok(())
         
     }
 
-    async fn loop_x_times(&self,times: usize) {
+    async fn loop_x_times(&self,times: usize) -> Result<(),TrackActionError> {
 
         self.bg_com_tx.send(IPCData::new_from_main(Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
@@ -95,10 +110,12 @@ impl TrackManager for PlayerObject {
             loop_times: Some(times.clone()),
             worker_id: self.worker_id.clone().unwrap(),
             voice_channel_id: None
-        }), self.tx.clone(), self.guild_id.clone())).unwrap();
+        }), self.tx.clone(), self.guild_id.clone())).context(FailedToSendIPCRequestSnafu)?;
+
+        Ok(())
         
     }
-    async fn seek_to_position(&self,position: Duration) {
+    async fn seek_to_position(&self,position: Duration) -> Result<(),TrackActionError> {
 
         self.bg_com_tx.send(IPCData::new_from_main(Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
@@ -111,10 +128,12 @@ impl TrackManager for PlayerObject {
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
             voice_channel_id: None
-        }), self.tx.clone(), self.guild_id.clone())).unwrap();
+        }), self.tx.clone(), self.guild_id.clone())).context(FailedToSendIPCRequestSnafu)?;
+
+        Ok(())
         
     }
-    async fn resume_playback(&self) {
+    async fn resume_playback(&self) -> Result<(),TrackActionError> {
 
         self.bg_com_tx.send(IPCData::new_from_main(Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
@@ -127,10 +146,12 @@ impl TrackManager for PlayerObject {
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
             voice_channel_id: None
-        }), self.tx.clone(), self.guild_id.clone())).unwrap();
+        }), self.tx.clone(), self.guild_id.clone())).context(FailedToSendIPCRequestSnafu)?;
+
+        Ok(())
         
     }
-    async fn pause_playback(&self) {
+    async fn pause_playback(&self) -> Result<(),TrackActionError> {
 
         self.bg_com_tx.send(IPCData::new_from_main(Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
@@ -143,10 +164,12 @@ impl TrackManager for PlayerObject {
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
             voice_channel_id: None
-        }), self.tx.clone(), self.guild_id.clone())).unwrap();
+        }), self.tx.clone(), self.guild_id.clone())).context(FailedToSendIPCRequestSnafu)?;
+
+        Ok(())
         
     }
-    async fn get_metadata(&mut self) -> Metadata {
+    async fn get_metadata(&mut self) -> Result<Metadata,TrackActionError> {
 
         self.bg_com_tx.send(IPCData::new_from_main(Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
@@ -159,7 +182,7 @@ impl TrackManager for PlayerObject {
             loop_times: None,
             worker_id: self.worker_id.clone().unwrap(),
             voice_channel_id: None
-        }), self.tx.clone(), self.guild_id.clone())).unwrap();
+        }), self.tx.clone(), self.guild_id.clone())).context(FailedToSendIPCRequestSnafu)?;
 
         let mut result: Option<Metadata> = None;
 
@@ -171,8 +194,8 @@ impl TrackManager for PlayerObject {
                 }
             }
             return true;
-        },self.tx.subscribe()).await;
+        },self.tx.subscribe(),Duration::from_secs(2)).await.context(TimedOutWaitingForMetadataResultSnafu)?;
 
-        return result.unwrap();
+        Ok(result.expect("This should never happen because the above parser either errors and returns or creates the metadata"))
     }
 }
