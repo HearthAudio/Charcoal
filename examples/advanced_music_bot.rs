@@ -10,6 +10,11 @@ use serenity::client::Context;
 use charcoal::serenity::{CharcoalKey, SerenityInit};
 use charcoal::background::processor::IPCData;
 
+// IMPORTANT NOTE:
+// This example uses unwrap()s on the Results<> from charcoal
+// In practice you should handle these error's properly
+// unwrap()s are used here for simplicity.
+
 
 use serenity::{
     async_trait,
@@ -104,7 +109,7 @@ async fn pause(ctx: &Context, msg: &Message) -> CommandResult {
 
     match handler {
         Some(handler) => {
-            handler.pause_playback().await;
+            handler.pause_playback().await.unwrap();
         },
         None => {
             error!("Failed to get manager!");
@@ -138,7 +143,7 @@ async fn resume(ctx: &Context, msg: &Message) -> CommandResult {
 
     match handler {
         Some(handler) => {
-            handler.resume_playback().await;
+            handler.resume_playback().await.unwrap();
         },
         None => {
             error!("Failed to get manager!");
@@ -217,7 +222,7 @@ async fn metadata(ctx: &Context, msg: &Message) -> CommandResult {
 
     match handler {
         Some(handler) => {
-            let meta = handler.get_metadata().await;
+            let meta = handler.get_metadata().await.unwrap();
             println!("{:?}",meta);
         },
         None => {
@@ -300,7 +305,7 @@ async fn play(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 
     match handler {
         Some(handler) => {
-            handler.play_from_http(url).await;
+            handler.play_from_http(url).await.unwrap();
             check_msg(msg.channel_id.say(&ctx.http, "Playing song").await);
         },
         None => {
@@ -335,7 +340,7 @@ async fn youtube(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 
     match handler {
         Some(handler) => {
-            handler.play_from_youtube(url).await;
+            handler.play_from_youtube(url).await.unwrap();
             check_msg(msg.channel_id.say(&ctx.http, "Playing song from YouTube").await);
         },
         None => {
@@ -367,7 +372,7 @@ async fn volume(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 
         match handler {
             Some(handler) => {
-                handler.set_playback_volume(volume).await;
+                handler.set_playback_volume(volume).await.unwrap();
                 check_msg(msg.channel_id.say(&ctx.http, "Set volume").await);
             },
             None => {
@@ -392,7 +397,7 @@ async fn stoploop(ctx: &Context, msg: &Message) -> CommandResult {
 
     match handler {
         Some(handler) => {
-            handler.force_stop_loop().await;
+            handler.force_stop_loop().await.unwrap();
             check_msg(msg.channel_id.say(&ctx.http, "Canceled Loop").await);
         },
         None => {
@@ -424,7 +429,7 @@ async fn looptimes(ctx: &Context, msg: &Message, mut args: Args) -> CommandResul
 
     match handler {
         Some(handler) => {
-            handler.loop_x_times(times).await;
+            handler.loop_x_times(times).await.unwrap();
             check_msg(msg.channel_id.say(&ctx.http, format!("Looping {} time(s)",times)).await);
         },
         None => {
@@ -454,7 +459,7 @@ async fn position(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
 
     match handler {
         Some(handler) => {
-            handler.seek_to_position(Duration::from_secs(position)).await;
+            handler.seek_to_position(Duration::from_secs(position)).await.unwrap();
             check_msg(msg.channel_id.say(&ctx.http, "Seeking...").await);
         },
         None => {
