@@ -358,6 +358,8 @@ async fn volume(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
         },
     };
 
+    // Make sure that volume is between 0 and 1. As for performance reasons the Hearth server does not have soft-clipping enabled
+    // So any values above 1 may clip
     if volume >= 0.0 && volume <= 1.0 {
         // Get the PlayerObject using a helper macro
         let mut handler : Option<&PlayerObject> = None;
