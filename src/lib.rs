@@ -1,5 +1,6 @@
 //! Charcoal is a client-library for Hearth that makes it easy to use Hearth with Rust.
 //! See Examples in the Github repo [here](https://github.com/Hearth-Industries/Charcoal/tree/main/examples)
+use std::cmp::min;
 use std::collections::HashMap;
 use std::sync::{Arc};
 use std::time::Duration;
@@ -7,16 +8,20 @@ use hearth_interconnect::messages::Message;
 use kafka::consumer::Consumer;
 use kafka::producer::Producer;
 use lazy_static::lazy_static;
-use log::error;
+use log::{error, info};
 use tokio::sync::{broadcast, Mutex, RwLock};
 use tokio::sync::broadcast::{Receiver, Sender};
+use tokio::sync::broadcast::error::TryRecvError;
 use tokio::time;
-use crate::background::processor::{init_processor, IPCData};
+use crate::background::processor::{FromBackgroundData, init_processor, IPCData};
 use crate::connector::{initialize_client, initialize_producer};
+use crate::constants::{EXPIRATION_LAGGED_BY_1, EXPIRATION_LAGGED_BY_2, EXPIRATION_LAGGED_BY_4};
+
 mod connector;
 pub mod actions;
 pub mod serenity;
 pub mod background;
+pub(crate) mod constants;
 
 lazy_static! {
     pub(crate) static ref PRODUCER: Mutex<Option<Producer>> = Mutex::new(None);
@@ -60,20 +65,23 @@ pub struct Charcoal {
 
 impl Charcoal {
     fn start_expiration_checker(&mut self) {
+        info!("Started expiration checker!");
         let mut rxx = self.tx.subscribe();
         let mut t_players = self.players.clone();
+        let mut tick_adjustments = 0;
         tokio::task::spawn(async move {
-            // let mut interval = time::interval(Duration::from_secs(1));
+            let mut interval = time::interval(Duration::from_secs(1));
 
             loop {
-                // interval.tick().await;
-                let catch = rxx.recv().await;
+                interval.tick().await;
+                let catch = rxx.try_recv();
                 match catch {
                     Ok(c) => {
                         match c {
                             IPCData::FromBackground(bg) => {
                                 match bg.message {
                                     Message::ExternalJobExpired(je) => {
+                                        info!("Job Expired: {}",je.job_id);
                                         let mut t_p_write = t_players.write().await;
                                         t_p_write.remove(&je.guild_id);
                                     },
@@ -84,7 +92,32 @@ impl Charcoal {
                         }
                     },
                     Err(e) => {
-                        error!("Failed to receive expiration check with error: {}",e);
+                        match e {
+                            TryRecvError::Empty => {
+
+                            },
+                            TryRecvError::Lagged(count) => {
+                                error!("Expiration Checker - Lagged by: {}",count);
+                                let mut tick_adjustment_ratio : f32 = tick_adjustments as f32;
+                                if count >= 4 {
+                                    tick_adjustment_ratio = (tick_adjustment_ratio * 1.2).clamp(1.0,3.0);
+                                    interval = time::interval(Duration::from_millis((EXPIRATION_LAGGED_BY_4 / tick_adjustment_ratio) as u64));
+                                    tick_adjustments += 1;
+                                } else if count >= 2 {
+                                    tick_adjustment_ratio = (tick_adjustment_ratio * 1.2).clamp(1.0,3.0);
+                                    interval = time::interval(Duration::from_millis((EXPIRATION_LAGGED_BY_2 / tick_adjustment_ratio) as u64));
+                                    tick_adjustments += 1;
+                                } else if count >= 1 {
+                                    tick_adjustment_ratio = (tick_adjustment_ratio * 1.2).clamp(1.0,3.0);
+                                    interval = time::interval(Duration::from_millis((EXPIRATION_LAGGED_BY_1 / tick_adjustment_ratio) as u64));
+                                    tick_adjustments += 1;
+                                }
+                                info!("Performed auto adjustment to prevent lag new interval: {} milliseconds",interval.period().as_millis());
+                            }
+                            _ => {
+                                error!("Failed to receive expiration check with error: {}",e);
+                            }
+                        }
                     }
                 }
             }
@@ -125,16 +158,20 @@ pub async fn init_charcoal(broker: String,config: CharcoalConfig) -> Arc<Mutex<C
 
     let (tx, mut rx) = broadcast::channel(16);
 
-    let sub_tx = tx.clone();
     let global_rx = tx.subscribe();
+    let sub_tx = tx.clone();
 
     tokio::task::spawn(async move {
         init_processor(rx,sub_tx,consumer,producer).await;
     });
 
-    Arc::new(Mutex::new(Charcoal {
+    let mut c_instance = Charcoal {
         players: Arc::new(RwLock::new(HashMap::new())),
         tx,
         rx: global_rx
-    }))
+    };
+
+    c_instance.start_expiration_checker(); // Start checking for expired jobs
+
+    Arc::new(Mutex::new(c_instance))
 }

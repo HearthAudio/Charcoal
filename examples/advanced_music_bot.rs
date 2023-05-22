@@ -176,7 +176,6 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
     // Check if we have already created the player by checking if the player's GuildID exists in the Players HashMap
     // Stored inside of the Charcoal Instance.
     // If we have already created the player just join the channel
-    println!("Joining");
     if mx.players.read().await.contains_key(&guild_id.to_string()) {
         let mut players = mx.players.write().await;
         let handler =  players.get_mut(&guild_id.to_string());
@@ -299,14 +298,12 @@ async fn play(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     match handler {
         Some(handler) => {
             handler.play_from_http(url).await;
-            check_msg(msg.channel_id.say(&ctx.http, "Playing song from YouTube").await);
+            check_msg(msg.channel_id.say(&ctx.http, "Playing song").await);
         },
         None => {
             error!("Failed to get manager!");
         }
     }
-
-    check_msg(msg.channel_id.say(&ctx.http, "Playing song").await);
 
     Ok(())
 }

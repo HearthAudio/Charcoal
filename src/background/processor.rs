@@ -45,7 +45,6 @@ impl IPCData {
 }
 
 pub async fn init_processor(mut rx: Receiver<IPCData>, mut global_tx: Sender<IPCData>, mut consumer: Consumer,mut producer: Producer) {
-
     let mut guild_id_to_tx: HashMap<String,Arc<Sender<IPCData>>> = HashMap::new();
     loop {
         let mss = consumer.poll().unwrap();

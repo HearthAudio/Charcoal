@@ -23,12 +23,10 @@ pub trait ChannelManager {
 impl ChannelManager for PlayerObject {
     /// Create job on Hearth server for this PlayerObject
     async fn create_job(&mut self) {
-
         self.bg_com_tx.send(IPCData::new_from_main(Message::ExternalQueueJob(JobRequest {
             request_id: nanoid!(),
             guild_id: self.guild_id.clone(),
         }), self.tx.clone(), self.guild_id.clone())).unwrap();
-
 
         boilerplate_parse_ipc(|msg| {
             if let IPCData::FromBackground(bg) = msg {
