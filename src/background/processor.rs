@@ -77,6 +77,15 @@ pub async fn init_processor(mut rx: Receiver<IPCData>, mut global_tx: Sender<IPC
                                     }
                                 }
                             },
+                            Message::ExternalJobExpired(je) => {
+                                let r = global_tx.send(IPCData::new_from_background(message));
+                                match r {
+                                    Ok(_) => {},
+                                    Err(e) => {
+                                        error!("Failed to send Kafka message to main thread once received with error: {}!",e)
+                                    }
+                                }
+                            },
                             Message::ExternalQueueJobResponse(r) => {
                                 let tx = guild_id_to_tx.get_mut(&r.guild_id);
                                 match tx {

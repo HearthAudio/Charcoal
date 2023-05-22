@@ -23,10 +23,7 @@ impl PlayerObject {
                     Ok(d) => {
                         match d {
                             IPCData::ErrorReport(e) => {
-                                println!("ERX: {:?}",e.clone());
-                                println!("ERXM: {},{}",guild_id,e.guild_id.clone());
                                 if guild_id == e.guild_id {
-                                    println!("ERX-REG-CALLBACK");
                                     callback(e,http.clone(),channel_id.clone()).await;
                                 }
                             },

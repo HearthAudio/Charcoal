@@ -2,11 +2,15 @@
 //! See Examples in the Github repo [here](https://github.com/Hearth-Industries/Charcoal/tree/main/examples)
 use std::collections::HashMap;
 use std::sync::{Arc};
+use std::time::Duration;
+use hearth_interconnect::messages::Message;
 use kafka::consumer::Consumer;
 use kafka::producer::Producer;
 use lazy_static::lazy_static;
-use tokio::sync::{broadcast, Mutex};
+use log::error;
+use tokio::sync::{broadcast, Mutex, RwLock};
 use tokio::sync::broadcast::{Receiver, Sender};
+use tokio::time;
 use crate::background::processor::{init_processor, IPCData};
 use crate::connector::{initialize_client, initialize_producer};
 mod connector;
@@ -49,14 +53,42 @@ impl PlayerObject {
 
 /// Stores Charcoal instance
 pub struct Charcoal {
-    pub players: HashMap<String,PlayerObject>, // Guild ID to PlayerObject
+    pub players: Arc<RwLock<HashMap<String,PlayerObject>>>, // Guild ID to PlayerObject
     pub tx: Sender<IPCData>,
     pub rx: Receiver<IPCData>
 }
 
 impl Charcoal {
-    pub fn get_player(&mut self,guild_id: &String) -> Option<&mut PlayerObject> {
-        return self.players.get_mut(guild_id);
+    fn start_expiration_checker(&mut self) {
+        let mut rxx = self.tx.subscribe();
+        let mut t_players = self.players.clone();
+        tokio::task::spawn(async move {
+            // let mut interval = time::interval(Duration::from_secs(1));
+
+            loop {
+                // interval.tick().await;
+                let catch = rxx.recv().await;
+                match catch {
+                    Ok(c) => {
+                        match c {
+                            IPCData::FromBackground(bg) => {
+                                match bg.message {
+                                    Message::ExternalJobExpired(je) => {
+                                        let mut t_p_write = t_players.write().await;
+                                        t_p_write.remove(&je.guild_id);
+                                    },
+                                    _ => {}
+                                }
+                            },
+                            _ => {}
+                        }
+                    },
+                    Err(e) => {
+                        error!("Failed to receive expiration check with error: {}",e);
+                    }
+                }
+            }
+        });
     }
 }
 
@@ -101,7 +133,7 @@ pub async fn init_charcoal(broker: String,config: CharcoalConfig) -> Arc<Mutex<C
     });
 
     Arc::new(Mutex::new(Charcoal {
-        players: HashMap::new(),
+        players: Arc::new(RwLock::new(HashMap::new())),
         tx,
         rx: global_rx
     }))
