@@ -157,6 +157,7 @@ async fn resume(ctx: &Context, msg: &Message) -> CommandResult {
 #[command]
 #[only_in(guilds)]
 async fn join(ctx: &Context, msg: &Message) -> CommandResult {
+    println!("Joining");
     let guild = msg.guild(&ctx.cache).unwrap();
     let guild_id = guild.id;
 
@@ -178,10 +179,13 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
     let manager = r.get::<CharcoalKey>();
     let mut mx = manager.unwrap().lock().await;
 
+    println!("GLOCK");
+
     // Check if we have already created the player by checking if the player's GuildID exists in the Players HashMap
     // Stored inside of the Charcoal Instance.
     // If we have already created the player just join the channel
     if mx.players.read().await.contains_key(&guild_id.to_string()) {
+        println!("Using pre-existing player");
         // Get a write lock on the players HashMap
         let mut players = mx.players.write().await;
         // Get a mutable reference to said player
@@ -189,17 +193,22 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
         // Join the channel
         handler.join_channel(connect_to.to_string()).await;
     } else {
+        println!("Creating new player");
         // If we have not created the player create it and then join the channel
         let mut handler = PlayerObject::new(guild_id.to_string(),mx.tx.clone()).await;
+        println!("Created new handler");
         // Make sure creating the PlayerObject worked
         match handler {
             Ok(mut handler) => {
                 // Register an error callback so errors from the hearth server can be reported back to us
                 handler.register_error_callback(report_error,ctx.http.clone(),msg.channel_id.to_string()).await;
                 // Join the channel
+                println!("Registered error callback");
                 handler.join_channel(connect_to.to_string()).await;
+                println!("Joined channel");
                 // Insert the newly created PlayerObject into the HashMap so we can use it later
                 mx.players.write().await.insert(guild_id.to_string(), handler);
+                println!("Inserted new player");
             },
             Err(e) => {
                 // If creating the job failed send an error message

@@ -86,6 +86,7 @@ pub async fn init_processor(mut rx: Receiver<IPCData>, mut global_tx: Sender<IPC
                                 }
                             },
                             Message::WorkerShutdownAlert(_) => {
+                                println!("WSAPR");
                                 let r = global_tx.send(IPCData::new_from_background(message));
                                 match r {
                                     Ok(_) => {},
