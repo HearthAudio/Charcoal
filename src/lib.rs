@@ -15,7 +15,6 @@ use tokio::sync::broadcast::error::TryRecvError;
 use tokio::time;
 use crate::actions::channel_manager::{ChannelManager, CreateJobError};
 use crate::background::processor::{FromBackgroundData, init_processor, IPCData};
-use crate::connector::{initialize_client, initialize_producer};
 use crate::constants::{EXPIRATION_LAGGED_BY_1, EXPIRATION_LAGGED_BY_2, EXPIRATION_LAGGED_BY_4};
 
 pub mod actions;
@@ -24,6 +23,7 @@ pub mod background;
 pub(crate) mod constants;
 mod helpers;
 use snafu::prelude::*;
+use crate::background::connector::{initialize_client, initialize_producer};
 
 lazy_static! {
     pub(crate) static ref PRODUCER: Mutex<Option<Producer>> = Mutex::new(None);
@@ -85,18 +85,21 @@ impl Charcoal {
                 let catch = rxx.try_recv();
                 match catch {
                     Ok(c) => {
-                        match c {
-                            IPCData::FromBackground(bg) => {
-                                match bg.message {
-                                    Message::ExternalJobExpired(je) => {
-                                        info!("Job Expired: {}",je.job_id);
-                                        let mut t_p_write = t_players.write().await;
-                                        t_p_write.remove(&je.guild_id);
-                                    },
-                                    _ => {}
+                        if let IPCData::FromBackground(bg) = c {
+                            match bg.message {
+                                Message::ExternalJobExpired(je) => {
+                                    info!("Job Expired: {}",je.job_id);
+                                    let mut t_p_write = t_players.write().await;
+                                    t_p_write.remove(&je.guild_id);
+                                },
+                                Message::WorkerShutdownAlert(shutdown_alert) => {
+                                    let mut t_p_write = t_players.write().await;
+                                    for job_id in shutdown_alert.affected_job_ids {
+                                        t_p_write.remove(&job_id);
+                                    }
                                 }
-                            },
-                            _ => {}
+                                _ => {}
+                            }
                         }
                     },
                     Err(e) => {
