@@ -511,7 +511,8 @@ checksum = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888"
 [[package]]
 name = "hearth-interconnect"
 version = "0.1.0"
-source = "git+https://github.com/Hearth-Industries/hearth-interconnect.git#02598fd4585907354c9e311c362d982f0d515ad9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "71a382de1a0b8222cdc0f7cad925121d5e3a204984fb5da5c0fd048e7f136bc6"
 dependencies = [
  "schemars",
  "serde",
