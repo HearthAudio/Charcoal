@@ -511,7 +511,7 @@ checksum = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888"
 [[package]]
 name = "hearth-interconnect"
 version = "0.1.0"
-source = "git+https://github.com/Hearth-Industries/hearth-interconnect.git#3a5e9fc63243acfedb8dba3f9eb47e15b8c5182c"
+source = "git+https://github.com/Hearth-Industries/hearth-interconnect.git#02598fd4585907354c9e311c362d982f0d515ad9"
 dependencies = [
  "schemars",
  "serde",

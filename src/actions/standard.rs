@@ -21,13 +21,10 @@ impl PlayerObject {
                 let x = t_rx.try_recv();
                 match x {
                     Ok(d) => {
-                        match d {
-                            IPCData::ErrorReport(e) => {
-                                if guild_id == e.guild_id {
-                                    callback(e,http.clone(),channel_id.clone()).await;
-                                }
-                            },
-                            _ => {}
+                        if let IPCData::ErrorReport(e) = d {
+                            if guild_id == e.guild_id {
+                                callback(e,http.clone(),channel_id.clone()).await;
+                            }
                         }
                     }
                     Err(e) => {

@@ -60,7 +60,7 @@ impl ChannelManager for PlayerObject {
 
         self.bg_com_tx.send(IPCData::new_from_main(Message::DirectWorkerCommunication(DirectWorkerCommunication {
             job_id: self.job_id.clone().unwrap(),
-            guild_id: Some(self.guild_id.clone()),
+            guild_id: self.guild_id.clone(),
             voice_channel_id: Some(voice_channel_id),
             play_audio_url: None,
             action_type: DWCActionType::JoinChannel,
@@ -78,7 +78,7 @@ impl ChannelManager for PlayerObject {
             job_id: self.job_id.clone().unwrap(),
             action_type: DWCActionType::LeaveChannel,
             play_audio_url: None,
-            guild_id: Some(self.guild_id.clone()),
+            guild_id: self.guild_id.clone(),
             request_id: Some(nanoid!()),
             new_volume: None,
             seek_position: None,
