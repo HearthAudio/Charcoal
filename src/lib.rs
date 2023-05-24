@@ -86,7 +86,6 @@ impl Charcoal {
                 match catch {
                     Ok(c) => {
                         if let IPCData::FromBackground(bg) = c {
-                            println!("MRECV {:?}",bg.message);
                             match bg.message {
                                 Message::ExternalJobExpired(je) => {
                                     info!("Job Expired: {}",je.job_id);
@@ -94,7 +93,6 @@ impl Charcoal {
                                     t_p_write.remove(&je.guild_id);
                                 },
                                 Message::WorkerShutdownAlert(shutdown_alert) => {
-                                    println!("WSHUT");
                                     info!("Worker shutdown! Cancelling Players!");
                                     let mut t_p_write = t_players.write().await;
                                     for job_id in shutdown_alert.affected_guild_ids {

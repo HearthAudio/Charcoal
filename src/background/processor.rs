@@ -75,7 +75,6 @@ pub async fn parse_message(message: Message, guild_id_to_tx: &mut HashMap<String
             }
         },
         Message::WorkerShutdownAlert(_) => {
-            println!("WSAPR");
             let r = global_tx.send(IPCData::new_from_background(message));
             match r {
                 Ok(_) => {},
@@ -137,7 +136,7 @@ pub async fn init_processor(mut rx: Receiver<IPCData>, mut global_tx: Sender<IPC
                 let parsed_message : Result<Message,serde_json::Error> = serde_json::from_slice(m.value);
                 match parsed_message {
                     Ok(message) => {
-                        parse_message(message,&mut guild_id_to_tx,&mut global_tx);
+                        parse_message(message,&mut guild_id_to_tx,&mut global_tx).await;
                     },
                     Err(e) => error!("{} - Failed to parse message",e),
                 }
