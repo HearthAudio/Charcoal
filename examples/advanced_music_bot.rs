@@ -81,7 +81,7 @@ async fn main() {
         .event_handler(Handler)
         .framework(framework)
         // Add a Kafka URL here to connect to the broker
-        .register_charcoal("kafka-185690f4-maxall4-aea3.aivencloud.com:23552".to_string(),CharcoalConfig {
+        .register_charcoal(env::var("KAFKA_BROKER").expect("Expected KAFKA_BROKER env variable"),CharcoalConfig {
             ssl: Some(SSLConfig {
                 ssl_ca: "ca.pem".to_string(),
                 ssl_cert: "service.cert".to_string(),

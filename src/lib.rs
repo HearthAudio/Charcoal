@@ -72,8 +72,8 @@ pub struct Charcoal {
 }
 
 impl Charcoal {
-    fn start_expiration_checker(&mut self) {
-        info!("Started expiration checker!");
+    fn start_global_checker(&mut self) {
+        info!("Started global data checker!");
         let mut rxx = self.tx.subscribe();
         let mut t_players = self.players.clone();
         let mut tick_adjustments = 0;
@@ -183,7 +183,7 @@ pub async fn init_charcoal(broker: String,config: CharcoalConfig) -> Arc<Mutex<C
         rx: global_rx
     };
 
-    c_instance.start_expiration_checker(); // Start checking for expired jobs
+    c_instance.start_global_checker(); // Start checking for expired jobs
 
     Arc::new(Mutex::new(c_instance))
 }
