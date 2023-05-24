@@ -8,6 +8,7 @@ use log::{debug, error};
 use nanoid::nanoid;
 use tokio::sync::broadcast::{Receiver, Sender};
 use crate::background::connector::send_message;
+use crate::CharcoalConfig;
 
 #[derive(Clone,Debug)]
 pub struct FromBackgroundData {
@@ -44,7 +45,7 @@ impl IPCData {
     }
 }
 
-pub async fn init_processor(mut rx: Receiver<IPCData>, mut global_tx: Sender<IPCData>, mut consumer: Consumer,mut producer: Producer) {
+pub async fn init_processor(mut rx: Receiver<IPCData>, mut global_tx: Sender<IPCData>, mut consumer: Consumer,mut producer: Producer,config: &CharcoalConfig) {
     let mut guild_id_to_tx: HashMap<String,Arc<Sender<IPCData>>> = HashMap::new();
     loop {
         let mss = consumer.poll().unwrap();
@@ -144,12 +145,9 @@ pub async fn init_processor(mut rx: Receiver<IPCData>, mut global_tx: Sender<IPC
         let rx_data = rx.try_recv();
         match rx_data {
             Ok(d) => {
-                match d {
-                    IPCData::FromMain(m) => {
-                        guild_id_to_tx.insert(m.guild_id,m.response_tx);
-                        send_message(&m.message,"communication",&mut producer);
-                    }
-                    _ => {}
+                if let IPCData::FromMain(m) = d {
+                    guild_id_to_tx.insert(m.guild_id,m.response_tx);
+                    send_message(&m.message,&config.kafka_topic,&mut producer);
                 }
 
             },
