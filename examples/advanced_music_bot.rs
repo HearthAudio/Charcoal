@@ -7,8 +7,13 @@ use log::error;
 
 // Import the `Context` to handle commands.
 use serenity::client::Context;
-use charcoal::serenity::{CharcoalKey, SerenityInit};
-use charcoal::background::processor::IPCData;
+use charcoal_client::serenity::{CharcoalKey, SerenityInit};
+use charcoal_client::background::processor::IPCData;
+use charcoal_client::{CharcoalConfig, get_handler_from_serenity, get_handler_from_serenity_mutable, PlayerObject, SSLConfig};
+use charcoal_client::actions::channel_manager::ChannelManager;
+use charcoal_client::actions::player::Player;
+use charcoal_client::actions::track_manager::TrackManager;
+
 
 // IMPORTANT NOTE:
 // This example uses unwrap()s on the Results<> from charcoal
@@ -33,12 +38,6 @@ use serenity::{
 use serenity::http::Http;
 use serenity::model::id::ChannelId;
 use tokio::time::sleep;
-
-
-use charcoal::actions::channel_manager::ChannelManager;
-use charcoal::actions::player::Player;
-use charcoal::{CharcoalConfig, get_handler_from_serenity, get_handler_from_serenity_mutable, PlayerObject, SSLConfig};
-use charcoal::actions::track_manager::TrackManager;
 
 struct Handler;
 
