@@ -176,7 +176,7 @@ pub async fn init_charcoal(broker: String,config: CharcoalConfig) -> Arc<Mutex<C
     let sub_tx = tx.clone();
 
     tokio::task::spawn(async move {
-        init_processor(rx,sub_tx,consumer,producer).await;
+        init_processor(rx,sub_tx,consumer,producer,config).await;
     });
 
     let mut c_instance = Charcoal {

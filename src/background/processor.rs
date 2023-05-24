@@ -45,7 +45,86 @@ impl IPCData {
     }
 }
 
-pub async fn init_processor(mut rx: Receiver<IPCData>, mut global_tx: Sender<IPCData>, mut consumer: Consumer,mut producer: Producer,config: &CharcoalConfig) {
+pub async fn parse_message(message: Message, guild_id_to_tx: &mut HashMap<String, Arc<Sender<IPCData>>>,global_tx: &mut Sender<IPCData>) {
+    match &message {
+        Message::ErrorReport(e) => {
+            error!("GOT Error: {:?} From Hearth Server",e);
+            let tx = guild_id_to_tx.get_mut(&e.guild_id);
+            match tx {
+                Some(tx) => {
+                    let gt = tx.send(IPCData::ErrorReport(e.clone()));
+                    match gt {
+                        Ok(_) => {},
+                        Err(e) => {
+                            error!("Failed to send error report with error: {:?}",e);
+                        }
+                    }
+                },
+                None => {
+                    error!("Failed to get appropriate sender when attempting to send error report")
+                }
+            }
+        },
+        Message::ExternalJobExpired(je) => {
+            let r = global_tx.send(IPCData::new_from_background(message));
+            match r {
+                Ok(_) => {},
+                Err(e) => {
+                    error!("Failed to send Kafka message to main thread once received with error: {}!",e)
+                }
+            }
+        },
+        Message::WorkerShutdownAlert(_) => {
+            println!("WSAPR");
+            let r = global_tx.send(IPCData::new_from_background(message));
+            match r {
+                Ok(_) => {},
+                Err(e) => {
+                    error!("Failed to send Kafka message to main thread once received with error: {}!",e)
+                }
+            }
+        }
+        Message::ExternalQueueJobResponse(r) => {
+            let tx = guild_id_to_tx.get_mut(&r.guild_id);
+            match tx {
+                Some(tx) => {
+                    let r = tx.send(IPCData::new_from_background(message));
+                    match r {
+                        Ok(_) => {},
+                        Err(e) => {
+                            error!("Failed to send Kafka message to main thread once received with error: {}!",e)
+                        }
+                    }
+                },
+                None => {
+                    error!("Failed to send Response from BG Thread!");
+                }
+            }
+
+        },
+        Message::ExternalMetadataResult(metadata) => {
+            let mut tx = guild_id_to_tx.get_mut(&metadata.guild_id);
+            match tx {
+                Some(tx) => {
+                    let r = tx.send(IPCData::new_from_background(message));
+                    match r {
+                        Ok(_) => {},
+                        Err(e) => {
+                            error!("Failed to send Kafka message to main thread once received with error: {}!",e)
+                        }
+                    }
+                },
+                None => {
+                    error!("Failed to send Response from BG Thread!");
+                }
+            }
+        }
+        _ => {}
+
+    }
+}
+
+pub async fn init_processor(mut rx: Receiver<IPCData>, mut global_tx: Sender<IPCData>, mut consumer: Consumer,mut producer: Producer,config: CharcoalConfig) {
     let mut guild_id_to_tx: HashMap<String,Arc<Sender<IPCData>>> = HashMap::new();
     loop {
         let mss = consumer.poll().unwrap();
@@ -58,82 +137,7 @@ pub async fn init_processor(mut rx: Receiver<IPCData>, mut global_tx: Sender<IPC
                 let parsed_message : Result<Message,serde_json::Error> = serde_json::from_slice(m.value);
                 match parsed_message {
                     Ok(message) => {
-                        match &message {
-                            Message::ErrorReport(e) => {
-                                error!("GOT Error: {:?} From Hearth Server",e);
-                                let tx = guild_id_to_tx.get_mut(&e.guild_id);
-                                match tx {
-                                    Some(tx) => {
-                                        let gt = tx.send(IPCData::ErrorReport(e.clone()));
-                                        match gt {
-                                            Ok(_) => {},
-                                            Err(e) => {
-                                                error!("Failed to send error report with error: {:?}",e);
-                                            }
-                                        }
-                                    },
-                                    None => {
-                                        error!("Failed to get appropriate sender when attempting to send error report")
-                                    }
-                                }
-                            },
-                            Message::ExternalJobExpired(je) => {
-                                let r = global_tx.send(IPCData::new_from_background(message));
-                                match r {
-                                    Ok(_) => {},
-                                    Err(e) => {
-                                        error!("Failed to send Kafka message to main thread once received with error: {}!",e)
-                                    }
-                                }
-                            },
-                            Message::WorkerShutdownAlert(_) => {
-                                println!("WSAPR");
-                                let r = global_tx.send(IPCData::new_from_background(message));
-                                match r {
-                                    Ok(_) => {},
-                                    Err(e) => {
-                                        error!("Failed to send Kafka message to main thread once received with error: {}!",e)
-                                    }
-                                }
-                            }
-                            Message::ExternalQueueJobResponse(r) => {
-                                let tx = guild_id_to_tx.get_mut(&r.guild_id);
-                                match tx {
-                                    Some(tx) => {
-                                        let r = tx.send(IPCData::new_from_background(message));
-                                        match r {
-                                            Ok(_) => {},
-                                            Err(e) => {
-                                                error!("Failed to send Kafka message to main thread once received with error: {}!",e)
-                                            }
-                                        }
-                                    },
-                                    None => {
-                                        error!("Failed to send Response from BG Thread!");
-                                    }
-                                }
-
-                            },
-                            Message::ExternalMetadataResult(metadata) => {
-                                let mut tx = guild_id_to_tx.get_mut(&metadata.guild_id);
-                                match tx {
-                                    Some(tx) => {
-                                        let r = tx.send(IPCData::new_from_background(message));
-                                        match r {
-                                            Ok(_) => {},
-                                            Err(e) => {
-                                                error!("Failed to send Kafka message to main thread once received with error: {}!",e)
-                                            }
-                                        }
-                                    },
-                                    None => {
-                                        error!("Failed to send Response from BG Thread!");
-                                    }
-                                }
-                            }
-                            _ => {}
-
-                        }
+                        parse_message(message,&mut guild_id_to_tx,&mut global_tx);
                     },
                     Err(e) => error!("{} - Failed to parse message",e),
                 }
@@ -141,7 +145,7 @@ pub async fn init_processor(mut rx: Receiver<IPCData>, mut global_tx: Sender<IPC
             let _ = consumer.consume_messageset(ms);
         }
         consumer.commit_consumed().unwrap();
-
+        // Receive messages from main function
         let rx_data = rx.try_recv();
         match rx_data {
             Ok(d) => {

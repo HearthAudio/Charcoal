@@ -1,10 +1,20 @@
 use std::env;
+use std::sync::Arc;
 use std::time::Duration;
+use hearth_interconnect::errors::ErrorReport;
 use log::error;
+
 
 // Import the `Context` to handle commands.
 use serenity::client::Context;
 use charcoal::serenity::{CharcoalKey, SerenityInit};
+use charcoal::background::processor::IPCData;
+
+// IMPORTANT NOTE:
+// This example uses unwrap()s on the Results<> from charcoal
+// In practice you should handle these error's properly
+// unwrap()s are used here for simplicity.
+
 
 use serenity::{
     async_trait,
@@ -20,14 +30,14 @@ use serenity::{
     prelude::GatewayIntents,
     Result as SerenityResult,
 };
-use serenity::prelude::TypeMap;
-use tokio::sync::RwLockReadGuard;
+use serenity::http::Http;
+use serenity::model::id::ChannelId;
 use tokio::time::sleep;
 
 
 use charcoal::actions::channel_manager::ChannelManager;
 use charcoal::actions::player::Player;
-use charcoal::{CharcoalConfig, PlayerObject, SSLConfig};
+use charcoal::{CharcoalConfig, get_handler_from_serenity, get_handler_from_serenity_mutable, PlayerObject, SSLConfig};
 use charcoal::actions::track_manager::TrackManager;
 
 struct Handler;
@@ -76,7 +86,6 @@ async fn main() {
         .await
         .expect("Err creating client");
 
-
     tokio::spawn(async move {
         let _ = client.start().await.map_err(|why| println!("Client ended: {:?}", why));
     });
@@ -88,16 +97,13 @@ async fn main() {
 #[command]
 #[only_in(guilds)]
 async fn pause(ctx: &Context, msg: &Message) -> CommandResult {
-    let r = ctx.data.read().await;
+    // Get the PlayerObject using a helper macro
+    let mut handler : Option<&PlayerObject> = None;
+    get_handler_from_serenity!(ctx,msg,handler);
 
-    let guild = msg.guild(&ctx.cache).unwrap();
-    let guild_id = guild.id;
-    let mut manager = r.get::<CharcoalKey>().unwrap().lock().await;
-    let manager = manager.get_player(&guild_id.to_string());
-
-    match manager {
-        Some(manager) => {
-            manager.pause_playback().await;
+    match handler {
+        Some(handler) => {
+            handler.pause_playback().await.unwrap();
         },
         None => {
             error!("Failed to get manager!");
@@ -110,16 +116,28 @@ async fn pause(ctx: &Context, msg: &Message) -> CommandResult {
 #[command]
 #[only_in(guilds)]
 async fn resume(ctx: &Context, msg: &Message) -> CommandResult {
-    let r = ctx.data.read().await;
+    // Get the PlayerObject using a helper macro
+    let mut handler : Option<&PlayerObject> = None;
+    get_handler_from_serenity!(ctx,msg,handler);
 
-    let guild = msg.guild(&ctx.cache).unwrap();
-    let guild_id = guild.id;
-    let mut manager = r.get::<CharcoalKey>().unwrap().lock().await;
-    let manager = manager.get_player(&guild_id.to_string());
+    // If you don't want to use the macro you can also get the PlayerObject like this
+    // As it is pretty much equivalent to the above macro:
 
-    match manager {
-        Some(manager) => {
-            manager.resume_playback().await;
+    // // Get the serenity typemap
+    // let r = ctx.data.read().await;
+    // // Get the GuildID
+    // let guild = msg.guild(&ctx.cache).unwrap();
+    // let guild_id = guild.id;
+    // // Get the charcoal manager from the serenity typemap
+    // let manager = r.get::<CharcoalKey>();
+    // let mut mx = manager.unwrap().lock().await;
+    // // Get the PlayerObject
+    // let mut players = mx.players.write().await;
+    // let handler =  players.get_mut(&guild_id.to_string());
+
+    match handler {
+        Some(handler) => {
+            handler.resume_playback().await.unwrap();
         },
         None => {
             error!("Failed to get manager!");
@@ -133,6 +151,7 @@ async fn resume(ctx: &Context, msg: &Message) -> CommandResult {
 #[command]
 #[only_in(guilds)]
 async fn join(ctx: &Context, msg: &Message) -> CommandResult {
+    println!("Joining");
     let guild = msg.guild(&ctx.cache).unwrap();
     let guild_id = guild.id;
 
@@ -148,21 +167,38 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
             return Ok(());
         }
     };
-    let r = ctx.data.write().await;
-    let mut manager = r.get::<CharcoalKey>().unwrap().lock().await;
 
+    // Get the manager from the serenity typemap
+    let r = ctx.data.write().await;
+    let manager = r.get::<CharcoalKey>();
+    let mut mx = manager.unwrap().lock().await;
+
+    // Check if we have already created the player by checking if the player's GuildID exists in the Players HashMap
+    // Stored inside of the Charcoal Instance.
     // If we have already created the player just join the channel
-    println!("Joining");
-    if manager.players.contains_key(&guild_id.to_string()) {
-        let handler =  manager.players.get_mut(&guild_id.to_string()).unwrap();
+    if mx.players.read().await.contains_key(&guild_id.to_string()) {
+        // Get a write lock on the players HashMap
+        let mut players = mx.players.write().await;
+        // Get a mutable reference to said player
+        let handler =  players.get_mut(&guild_id.to_string()).expect("This should never happen because we checked the key exists in the if check above");
+        // Join the channel
         handler.join_channel(connect_to.to_string()).await;
     } else {
         // If we have not created the player create it and then join the channel
-        let mut handler = PlayerObject::new(guild_id.to_string(),manager.tx.clone()).await;
-        handler.create_job().await;
-        // sleep(Duration::from_secs(1)).await;
-        handler.join_channel(connect_to.to_string()).await;
-        manager.players.insert(guild_id.to_string(), handler);
+        let mut handler = PlayerObject::new(guild_id.to_string(),mx.tx.clone()).await;
+        // Make sure creating the PlayerObject worked
+        match handler {
+            Ok(mut handler) => {
+                // Join the channel
+                handler.join_channel(connect_to.to_string()).await;
+                // Insert the newly created PlayerObject into the HashMap so we can use it later
+                mx.players.write().await.insert(guild_id.to_string(), handler);
+            },
+            Err(e) => {
+                // If creating the job failed send an error message
+                check_msg(msg.channel_id.say(&ctx.http, format!("Failed to register PlayerObject with error: {}",e)).await);
+            }
+        }
     }
 
     Ok(())
@@ -171,16 +207,15 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
 #[command]
 #[only_in(guilds)]
 async fn metadata(ctx: &Context, msg: &Message) -> CommandResult {
-    let r = ctx.data.read().await;
+    // Get the PlayerObject using a helper macro
+    let mut handler : Option<&mut PlayerObject> = None;
+    // This get's a mutable PlayerObject instead of a constant one
+    // Be careful where you use this as getting the playerobject as mutable locks the internal RwLock Mutex
+    get_handler_from_serenity_mutable!(ctx,msg,handler);
 
-    let guild = msg.guild(&ctx.cache).unwrap();
-    let guild_id = guild.id;
-    let mut manager = r.get::<CharcoalKey>().unwrap().lock().await;
-    let manager = manager.get_player(&guild_id.to_string());
-
-    match manager {
-        Some(manager) => {
-            let meta = manager.get_metadata().await;
+    match handler {
+        Some(handler) => {
+            let meta = handler.get_metadata().await.unwrap();
             println!("{:?}",meta);
         },
         None => {
@@ -194,15 +229,14 @@ async fn metadata(ctx: &Context, msg: &Message) -> CommandResult {
 #[command]
 #[only_in(guilds)]
 async fn loopforever(ctx: &Context, msg: &Message) -> CommandResult {
-    let r = ctx.data.read().await;
+    // Get the PlayerObject using a helper macro
+    let mut handler : Option<&PlayerObject> = None;
+    get_handler_from_serenity!(ctx,msg,handler);
 
-    let guild = msg.guild(&ctx.cache).unwrap();
-    let guild_id = guild.id;
-    let mut manager = r.get::<CharcoalKey>().unwrap().lock().await;
-    let manager = manager.get_player(&guild_id.to_string());
-    match manager {
-        Some(manager) => {
-            let meta = manager.loop_indefinitely().await;
+    match handler {
+        Some(handler) => {
+            let meta = handler.loop_indefinitely().await;
+            check_msg(msg.channel_id.say(&ctx.http, "Looping forever!").await);
         },
         None => {
             error!("Failed to get manager!");
@@ -216,16 +250,13 @@ async fn loopforever(ctx: &Context, msg: &Message) -> CommandResult {
 #[command]
 #[only_in(guilds)]
 async fn leave(ctx: &Context, msg: &Message) -> CommandResult {
-    let r = ctx.data.read().await;
+    // Get the PlayerObject using a helper macro
+    let mut handler : Option<&PlayerObject> = None;
+    get_handler_from_serenity!(ctx,msg,handler);
 
-    let guild = msg.guild(&ctx.cache).unwrap();
-    let guild_id = guild.id;
-    let mut manager = r.get::<CharcoalKey>().unwrap().lock().await;
-    let manager = manager.get_player(&guild_id.to_string());
-
-    match manager {
-        Some(manager) => {
-            manager.exit_channel().await;
+    match handler {
+        Some(handler) => {
+            handler.exit_channel().await;
         },
         None => {
             error!("Failed to get manager!");
@@ -260,19 +291,20 @@ async fn play(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
         return Ok(());
     }
 
-    let r = ctx.data.read().await;
-    println!("Getting manager");
-    let guild = msg.guild(&ctx.cache).unwrap();
-    let guild_id = guild.id;
-    println!("GET: {}",guild_id.to_string());
-    let manager = r.get::<CharcoalKey>();
-    let mut mx = manager.unwrap().lock().await;
-    let handler =  mx.players.get_mut(&guild_id.to_string()).unwrap();
-    println!("GOT MANAGER");
+    // Get the PlayerObject using a helper macro
+    let mut handler : Option<&mut PlayerObject> = None;
+    get_handler_from_serenity_mutable!(ctx,msg,handler);
 
 
-    handler.play_from_http(url).await;
-    check_msg(msg.channel_id.say(&ctx.http, "Playing song").await);
+    match handler {
+        Some(handler) => {
+            handler.play_from_http(url).await.unwrap();
+            check_msg(msg.channel_id.say(&ctx.http, "Playing song").await);
+        },
+        None => {
+            error!("Failed to get manager!");
+        }
+    }
 
     Ok(())
 }
