@@ -6,12 +6,12 @@
 use std::ops::Sub;
 use std::process;
 
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration};
 use hearth_interconnect::messages::{Message};
 use kafka;
-use kafka::consumer::Consumer;
+
 use kafka::producer::{Producer, Record, RequiredAcks};
-use log::{debug, error, info, warn};
+use log::{error, info};
 use snafu::prelude::*;
 use openssl;
 use tokio::sync::broadcast::error::TryRecvError;
@@ -20,7 +20,7 @@ use tokio::time::sleep;
 use crate::background::processor::IPCData;
 use crate::CharcoalConfig;
 use crate::helpers::get_unix_timestamp;
-use self::kafka::client::{FetchOffset, KafkaClient, SecurityConfig};
+use self::kafka::client::{KafkaClient, SecurityConfig};
 use self::openssl::ssl::{SslConnector, SslFiletype, SslMethod, SslVerifyMode};
 
 pub fn initialize_client(brokers: &Vec<String>,config: &CharcoalConfig) -> KafkaClient {

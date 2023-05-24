@@ -5,7 +5,7 @@ use hearth_interconnect::messages::Message;
 use kafka::consumer::Consumer;
 use kafka::producer::Producer;
 use log::{debug, error};
-use nanoid::nanoid;
+
 use tokio::sync::broadcast::{Receiver, Sender};
 use crate::background::connector::send_message;
 use crate::CharcoalConfig;
@@ -65,7 +65,7 @@ pub async fn parse_message(message: Message, guild_id_to_tx: &mut HashMap<String
                 }
             }
         },
-        Message::ExternalJobExpired(je) => {
+        Message::ExternalJobExpired(_je) => {
             let r = global_tx.send(IPCData::new_from_background(message));
             match r {
                 Ok(_) => {},
@@ -102,7 +102,7 @@ pub async fn parse_message(message: Message, guild_id_to_tx: &mut HashMap<String
 
         },
         Message::ExternalMetadataResult(metadata) => {
-            let mut tx = guild_id_to_tx.get_mut(&metadata.guild_id);
+            let tx = guild_id_to_tx.get_mut(&metadata.guild_id);
             match tx {
                 Some(tx) => {
                     let r = tx.send(IPCData::new_from_background(message));

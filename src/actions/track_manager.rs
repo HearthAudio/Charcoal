@@ -3,10 +3,10 @@ use std::time::Duration;
 use async_trait::async_trait;
 use hearth_interconnect::messages::{Message, Metadata};
 use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
-use log::{debug, error};
+
 use nanoid::nanoid;
-use tokio::time::sleep;
-use crate::{CONSUMER, PlayerObject, PRODUCER};
+
+use crate::{PlayerObject};
 use crate::background::connector::{boilerplate_parse_ipc, BoilerplateParseIPCError};
 use crate::background::processor::IPCData;
 use snafu::prelude::*;

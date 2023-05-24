@@ -4,7 +4,7 @@ use hearth_interconnect::messages::Message;
 use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
 
 use nanoid::nanoid;
-use crate::{PlayerObject, PRODUCER};
+use crate::{PlayerObject};
 use crate::background::processor::IPCData;
 use snafu::prelude::*;
 use tokio::sync::broadcast::error::SendError;

@@ -1,14 +1,14 @@
 use std::env;
-use std::sync::Arc;
-use std::time::Duration;
-use hearth_interconnect::errors::ErrorReport;
+
+
+
 use log::error;
 
 
 // Import the `Context` to handle commands.
 use serenity::client::Context;
 use charcoal_client::serenity::{CharcoalKey, SerenityInit};
-use charcoal_client::background::processor::IPCData;
+
 
 // IMPORTANT NOTE:
 // This example uses unwrap()s on the Results<> from charcoal
@@ -30,9 +30,9 @@ use serenity::{
     prelude::GatewayIntents,
     Result as SerenityResult,
 };
-use serenity::http::Http;
-use serenity::model::id::ChannelId;
-use tokio::time::sleep;
+
+
+
 use charcoal_client::{CharcoalConfig, get_handler_from_serenity, get_handler_from_serenity_mutable, PlayerObject, SSLConfig};
 use charcoal_client::actions::channel_manager::ChannelManager;
 use charcoal_client::actions::player::Player;
@@ -169,7 +169,7 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
     // Get the manager from the serenity typemap
     let r = ctx.data.write().await;
     let manager = r.get::<CharcoalKey>();
-    let mut mx = manager.unwrap().lock().await;
+    let mx = manager.unwrap().lock().await;
 
     // Check if we have already created the player by checking if the player's GuildID exists in the Players HashMap
     // Stored inside of the Charcoal Instance.
@@ -183,7 +183,7 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
         handler.join_channel(connect_to.to_string()).await;
     } else {
         // If we have not created the player create it and then join the channel
-        let mut handler = PlayerObject::new(guild_id.to_string(),mx.tx.clone()).await;
+        let handler = PlayerObject::new(guild_id.to_string(),mx.tx.clone()).await;
         // Make sure creating the PlayerObject worked
         match handler {
             Ok(mut handler) => {
@@ -233,7 +233,7 @@ async fn loopforever(ctx: &Context, msg: &Message) -> CommandResult {
 
     match handler {
         Some(handler) => {
-            let meta = handler.loop_indefinitely().await;
+            let _meta = handler.loop_indefinitely().await;
             check_msg(msg.channel_id.say(&ctx.http, "Looping forever!").await);
         },
         None => {

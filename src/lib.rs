@@ -1,6 +1,6 @@
 //! Charcoal is a client-library for Hearth that makes it easy to use Hearth with Rust.
 //! See Examples in the Github repo [here](https://github.com/Hearth-Industries/Charcoal/tree/main/examples)
-use std::cmp::min;
+
 use std::collections::HashMap;
 use std::sync::{Arc};
 use std::time::Duration;
@@ -14,7 +14,7 @@ use tokio::sync::broadcast::{Receiver, Sender};
 use tokio::sync::broadcast::error::TryRecvError;
 use tokio::time;
 use crate::actions::channel_manager::{ChannelManager, CreateJobError};
-use crate::background::processor::{FromBackgroundData, init_processor, IPCData};
+use crate::background::processor::{init_processor, IPCData};
 use crate::constants::{EXPIRATION_LAGGED_BY_1, EXPIRATION_LAGGED_BY_2, EXPIRATION_LAGGED_BY_4};
 
 pub mod actions;
@@ -22,7 +22,7 @@ pub mod serenity;
 pub mod background;
 pub(crate) mod constants;
 mod helpers;
-use snafu::prelude::*;
+
 use crate::background::connector::{initialize_client, initialize_producer};
 
 lazy_static! {
@@ -46,7 +46,7 @@ pub struct PlayerObject {
 impl PlayerObject {
     /// Creates a new Player Object that can then be joined to channel and used to playback audio
     pub async fn new(guild_id: String,com_tx: Sender<IPCData>) -> Result<Self,CreateJobError> {
-        let (tx, mut rx) = broadcast::channel(16);
+        let (tx, rx) = broadcast::channel(16);
 
         let mut handler = PlayerObject {
             worker_id: None,
@@ -75,7 +75,7 @@ impl Charcoal {
     fn start_global_checker(&mut self) {
         info!("Started global data checker!");
         let mut rxx = self.tx.subscribe();
-        let mut t_players = self.players.clone();
+        let t_players = self.players.clone();
         let mut tick_adjustments = 0;
         tokio::task::spawn(async move {
             let mut interval = time::interval(Duration::from_secs(1));
@@ -168,7 +168,7 @@ pub async fn init_charcoal(broker: String,config: CharcoalConfig) -> Arc<Mutex<C
 
     let producer : Producer = initialize_producer(initialize_client(&brokers,&config));
 
-    let (tx, mut rx) = broadcast::channel(16);
+    let (tx, rx) = broadcast::channel(16);
 
     let global_rx = tx.subscribe();
     let sub_tx = tx.clone();

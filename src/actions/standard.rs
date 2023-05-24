@@ -1,7 +1,7 @@
 //! Standard actions that can be called on a PlayerObject
 use std::sync::Arc;
 use std::time::Duration;
-use async_fn_traits::{AsyncFn2, AsyncFn3};
+use async_fn_traits::{AsyncFn3};
 use hearth_interconnect::errors::ErrorReport;
 use log::error;
 use serenity::http::Http;

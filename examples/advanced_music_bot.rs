@@ -8,7 +8,7 @@ use log::error;
 // Import the `Context` to handle commands.
 use serenity::client::Context;
 use charcoal_client::serenity::{CharcoalKey, SerenityInit};
-use charcoal_client::background::processor::IPCData;
+
 use charcoal_client::{CharcoalConfig, get_handler_from_serenity, get_handler_from_serenity_mutable, PlayerObject, SSLConfig};
 use charcoal_client::actions::channel_manager::ChannelManager;
 use charcoal_client::actions::player::Player;
@@ -37,7 +37,7 @@ use serenity::{
 };
 use serenity::http::Http;
 use serenity::model::id::ChannelId;
-use tokio::time::sleep;
+
 
 struct Handler;
 
@@ -176,7 +176,7 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
     // Get the manager from the serenity typemap
     let r = ctx.data.write().await;
     let manager = r.get::<CharcoalKey>();
-    let mut mx = manager.unwrap().lock().await;
+    let mx = manager.unwrap().lock().await;
 
     println!("GLOCK");
 
@@ -194,7 +194,7 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
     } else {
         println!("Creating new player");
         // If we have not created the player create it and then join the channel
-        let mut handler = PlayerObject::new(guild_id.to_string(),mx.tx.clone()).await;
+        let handler = PlayerObject::new(guild_id.to_string(),mx.tx.clone()).await;
         println!("Created new handler");
         // Make sure creating the PlayerObject worked
         match handler {
@@ -250,7 +250,7 @@ async fn loopforever(ctx: &Context, msg: &Message) -> CommandResult {
 
     match handler {
         Some(handler) => {
-            let meta = handler.loop_indefinitely().await;
+            let _meta = handler.loop_indefinitely().await;
             check_msg(msg.channel_id.say(&ctx.http, "Looping forever!").await);
         },
         None => {
