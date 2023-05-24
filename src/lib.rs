@@ -38,7 +38,6 @@ pub struct PlayerObject {
     job_id:  Option<String>,
     guild_id:  String,
     tx: Arc<Sender<IPCData>>,
-    rx: Receiver<IPCData>,
     bg_com_tx: Sender<IPCData>
 }
 
@@ -46,14 +45,13 @@ pub struct PlayerObject {
 impl PlayerObject {
     /// Creates a new Player Object that can then be joined to channel and used to playback audio
     pub async fn new(guild_id: String,com_tx: Sender<IPCData>) -> Result<Self,CreateJobError> {
-        let (tx, rx) = broadcast::channel(16);
+        let (tx, _rx) = broadcast::channel(16);
 
         let mut handler = PlayerObject {
             worker_id: None,
             job_id: None,
             guild_id,
             tx: Arc::new(tx),
-            rx: rx,
             bg_com_tx: com_tx
         };
 
