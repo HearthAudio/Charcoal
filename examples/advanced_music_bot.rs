@@ -198,7 +198,7 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
         // Get a mutable reference to said player
         let handler =  players.get_mut(&guild_id.to_string()).expect("This should never happen because we checked the key exists in the if check above");
         // Join the channel
-        handler.join_channel(connect_to.to_string()).await;
+        handler.join_channel(connect_to.to_string()).await.unwrap();
     } else {
         println!("Creating new player");
         // If we have not created the player create it and then join the channel
@@ -211,7 +211,7 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
                 handler.register_event_handler(CustomEventHandler {}).await;
                 // Join the channel
                 println!("Registered error callback");
-                handler.join_channel(connect_to.to_string()).await;
+                handler.join_channel(connect_to.to_string()).await.unwrap();
                 println!("Joined channel");
                 // Insert the newly created PlayerObject into the HashMap so we can use it later
                 mx.players.write().await.insert(guild_id.to_string(), handler);
@@ -238,7 +238,7 @@ async fn metadata(ctx: &Context, msg: &Message) -> CommandResult {
 
     match handler {
         Some(handler) => {
-            let meta = handler.get_metadata().await.unwrap();
+            handler.get_metadata().await.unwrap();
             println!("{:?}",meta);
         },
         None => {
