@@ -41,7 +41,7 @@ impl PlayerObject {
                         }
                     }
                     Err(e) => {
-                        if e.to_string() != "channel empty".to_string() {
+                        if e.to_string() != *"channel empty" {
                             error!("Failed to RECV with error: {:?}",e);
                         }
                     }

@@ -60,26 +60,23 @@ pub fn initialize_client(brokers: &Vec<String>,config: &CharcoalConfig) -> Kafka
     }
 
     // ~ communicate with the brokers
-    match client.load_metadata_all() {
-        Err(e) => {
-            error!("{:?}", e);
-            drop(client);
-            process::exit(1);
-        }
-        Ok(_) => {}
+    if let Err(e) = client.load_metadata_all() {
+        error!("{:?}", e);
+        drop(client);
+        process::exit(1);
     }
-    return client;
+
+   client
 }
 
 pub fn initialize_producer(client: KafkaClient) -> Producer {
-    let producer = Producer::from_client(client)
+    Producer::from_client(client)
         // ~ give the brokers one second time to ack the message
         .with_ack_timeout(Duration::from_secs(1))
         // ~ require only one broker to ack the message
         .with_required_acks(RequiredAcks::One)
         // ~ build the producer with the above settings
-        .create().unwrap();
-    return producer;
+        .create().unwrap()
 }
 
 pub fn send_message(message: &Message, topic: &str, producer: &mut Producer) {

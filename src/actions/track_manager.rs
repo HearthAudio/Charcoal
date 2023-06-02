@@ -107,7 +107,7 @@ impl TrackManager for PlayerObject {
             request_id: Some(nanoid!()),
             new_volume: None,
             seek_position: None,
-            loop_times: Some(times.clone()),
+            loop_times: Some(times),
             worker_id: self.worker_id.read().await.clone().unwrap(),
             voice_channel_id: None
         }), self.tx.clone(), self.guild_id.clone())).context(FailedToSendIPCRequestSnafu)?;

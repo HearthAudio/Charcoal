@@ -64,7 +64,7 @@ impl ChannelManager for PlayerObject {
                         return false;
                     }
                 }
-                return true;
+                true
             },tx.subscribe(),Duration::from_secs(3)).await.unwrap();
         });
 
