@@ -1,0 +1,24 @@
+# Copied from Twilight's Lint workflow.
+#
+# https://github.com/twilight-rs/twilight/blob/trunk/.github/workflows/lint.yml
+name: Lint
+
+on: [push, pull_request]
+
+jobs:
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+
+      - name: Install toolchain
+        run: rustup install stable
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run clippy
+        run: cargo clippy --workspace --tests -- -D warnings
