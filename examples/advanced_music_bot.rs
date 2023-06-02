@@ -239,7 +239,6 @@ async fn metadata(ctx: &Context, msg: &Message) -> CommandResult {
     match handler {
         Some(handler) => {
             handler.get_metadata().await.unwrap();
-            println!("{:?}",meta);
         },
         None => {
             error!("Failed to get manager!");
