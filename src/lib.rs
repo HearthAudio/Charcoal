@@ -34,8 +34,8 @@ lazy_static! {
 
 /// Represents an instance in a voice channel
 pub struct PlayerObject {
-    worker_id: Option<String>,
-    job_id:  Option<String>,
+    worker_id: Arc<RwLock<Option<String>>>,
+    job_id:  Arc<RwLock<Option<String>>>,
     guild_id:  String,
     tx: Arc<Sender<IPCData>>,
     bg_com_tx: Sender<IPCData>
@@ -48,8 +48,8 @@ impl PlayerObject {
         let (tx, _rx) = broadcast::channel(16);
 
         let mut handler = PlayerObject {
-            worker_id: None,
-            job_id: None,
+            worker_id: Arc::new(RwLock::new(None)),
+            job_id: Arc::new(RwLock::new(None)),
             guild_id,
             tx: Arc::new(tx),
             bg_com_tx: com_tx

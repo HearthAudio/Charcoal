@@ -200,7 +200,7 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
         match handler {
             Ok(mut handler) => {
                 // Register an error callback so errors from the hearth server can be reported back to us
-                handler.register_error_callback(report_error,ctx.http.clone(),msg.channel_id.to_string()).await;
+                handler.register_event_handler(report_error, ctx.http.clone(), msg.channel_id.to_string()).await;
                 // Join the channel
                 println!("Registered error callback");
                 handler.join_channel(connect_to.to_string()).await;

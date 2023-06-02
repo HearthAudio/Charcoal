@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use hearth_interconnect::errors::ErrorReport;
-use hearth_interconnect::messages::Message;
+use hearth_interconnect::messages::{Message, Metadata};
 use kafka::consumer::Consumer;
 use kafka::producer::Producer;
 use log::{debug, error};
@@ -26,7 +26,8 @@ pub struct FromMainData {
 pub enum IPCData {
     FromBackground(FromBackgroundData),
     FromMain(FromMainData),
-    ErrorReport(ErrorReport)
+    ErrorReport(ErrorReport),
+    MetadataResult(Metadata)
 }
 
 // Makes things slightly easier
@@ -105,16 +106,16 @@ pub async fn parse_message(message: Message, guild_id_to_tx: &mut HashMap<String
             let tx = guild_id_to_tx.get_mut(&metadata.guild_id);
             match tx {
                 Some(tx) => {
-                    let r = tx.send(IPCData::new_from_background(message));
-                    match r {
+                    let gt = tx.send(IPCData::MetadataResult(metadata.clone()));
+                    match gt {
                         Ok(_) => {},
                         Err(e) => {
-                            error!("Failed to send Kafka message to main thread once received with error: {}!",e)
+                            error!("Failed to send error report with error: {:?}",e);
                         }
                     }
                 },
                 None => {
-                    error!("Failed to send Response from BG Thread!");
+                    error!("Failed to get appropriate sender when attempting to send error report")
                 }
             }
         }
