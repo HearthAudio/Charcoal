@@ -2,6 +2,7 @@ use std::env;
 use std::sync::Arc;
 use std::time::Duration;
 use hearth_interconnect::errors::ErrorReport;
+use hearth_interconnect::messages::Metadata;
 use log::error;
 
 
@@ -37,6 +38,7 @@ use serenity::{
 };
 use serenity::http::Http;
 use serenity::model::id::ChannelId;
+use charcoal_client::actions::standard::CharcoalEventHandler;
 
 
 struct Handler;
@@ -52,10 +54,16 @@ impl EventHandler for Handler {
 #[commands(join, leave, play, ping,metadata,loopforever,pause,resume,youtube,volume,stoploop,looptimes,position)]
 struct General;
 
-async fn report_error(error_report: ErrorReport,http: Arc<Http>,channel_id: String) {
-    let voice_channel_id = ChannelId::from(channel_id.parse::<u64>().unwrap());
-    let msg = voice_channel_id.say(http, format!("Action failed with error: {:?}",error_report.error)).await;
-    check_msg(msg);
+struct CustomEventHandler {}
+
+impl CharcoalEventHandler for CustomEventHandler {
+    fn handle_error(&self, error_report: ErrorReport) {
+        println!("Uh oh got error in event handler: {:?}",error_report);
+    }
+
+    fn handle_metadata_response(&self, metadata: Metadata) {
+        println!("Got metadata back in event handler: {:?}",metadata);
+    }
 }
 
 #[tokio::main]
@@ -200,7 +208,7 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
         match handler {
             Ok(mut handler) => {
                 // Register an error callback so errors from the hearth server can be reported back to us
-                handler.register_event_handler(report_error, ctx.http.clone(), msg.channel_id.to_string()).await;
+                handler.register_event_handler(CustomEventHandler {}).await;
                 // Join the channel
                 println!("Registered error callback");
                 handler.join_channel(connect_to.to_string()).await;
