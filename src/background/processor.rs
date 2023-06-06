@@ -153,6 +153,6 @@ pub async fn init_processor(mut rx: Receiver<IPCData>, mut global_tx: Sender<IPC
             },
             Err(e) => error!("{}",e)
         }
-        
+
     }
 }
