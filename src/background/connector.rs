@@ -16,7 +16,7 @@ use nanoid::nanoid;
 use snafu::prelude::*;
 use openssl;
 use rdkafka::ClientConfig;
-use rdkafka::consumer::{Consumer, StreamConsumer};
+use rdkafka::consumer::{BaseConsumer, Consumer, StreamConsumer};
 use rdkafka::producer::{FutureProducer, FutureRecord};
 use tokio::sync::broadcast::error::TryRecvError;
 use tokio::sync::broadcast::Receiver;
@@ -58,7 +58,7 @@ pub fn initialize_producer(broker: &str,config: &CharcoalConfig) -> FutureProduc
     producer
 }
 
-pub async fn initialize_client(brokers: &String, config: &CharcoalConfig) -> StreamConsumer {
+pub async fn initialize_client(brokers: &String, config: &CharcoalConfig) -> BaseConsumer {
 
     let mut kafka_config = ClientConfig::new()
         .set("group.id", nanoid!())
@@ -71,7 +71,7 @@ pub async fn initialize_client(brokers: &String, config: &CharcoalConfig) -> Str
 
     kafka_config = configure_kafka_ssl(kafka_config,config);
 
-    let consumer : StreamConsumer = kafka_config.create().expect("Failed to create Consumer");
+    let consumer : BaseConsumer = kafka_config.create().expect("Failed to create Consumer");
 
     consumer
         .subscribe(&[&config.kafka_topic])
