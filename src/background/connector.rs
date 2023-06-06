@@ -12,10 +12,11 @@ use futures::SinkExt;
 use hearth_interconnect::messages::{Message};
 
 use log::{error, info};
+use nanoid::nanoid;
 use snafu::prelude::*;
 use openssl;
 use rdkafka::ClientConfig;
-use rdkafka::consumer::StreamConsumer;
+use rdkafka::consumer::{Consumer, StreamConsumer};
 use rdkafka::producer::{FutureProducer, FutureRecord};
 use tokio::sync::broadcast::error::TryRecvError;
 use tokio::sync::broadcast::Receiver;
@@ -24,27 +25,30 @@ use crate::background::processor::IPCData;
 use crate::CharcoalConfig;
 use crate::helpers::get_unix_timestamp;
 use self::openssl::ssl::{SslConnector, SslFiletype, SslMethod, SslVerifyMode};
-fn configure_kafka_ssl(mut kafka_config: ClientConfig,config: &Config) -> ClientConfig {
-    if config.kafka.kafka_use_ssl.unwrap_or(false) {
+fn configure_kafka_ssl(mut kafka_config: ClientConfig,config: &CharcoalConfig) -> ClientConfig {
+    if config.ssl.is_some() {
+        let ssl = config.ssl.clone().unwrap();
         kafka_config
             .set("security.protocol","ssl")
-            .set("ssl.ca.location",config.kafka.kafka_ssl_ca.clone().expect("Kafka CA Not Found"))
-            .set("ssl.certificate.location",config.kafka.kafka_ssl_cert.clone().expect("Kafka Cert Not Found"))
-            .set("ssl.key.location",config.kafka.kafka_ssl_key.clone().expect("Kafka Key Not Found"));
-    } else if config.kafka.kafka_use_sasl.unwrap_or(false) {
+            .set("ssl.ca.location",ssl.ssl_ca)
+            .set("ssl.certificate.location",ssl.ssl_cert)
+            .set("ssl.key.location",ssl.ssl_key);
+    } else if config.sasl.is_some() {
+        let sasl = config.sasl.clone().unwrap();
         kafka_config
             .set("security.protocol","SASL_SSL")
             .set("sasl.mechanisms","PLAIN")
-            .set("sasl.username",config.kafka.kafka_username.as_ref().unwrap())
-            .set("sasl.password",config.kafka.kafka_password.as_ref().unwrap());
+            .set("sasl.username",sasl.kafka_username)
+            .set("sasl.password",sasl.kafka_password);
     }
     return kafka_config;
 }
 
-pub fn initialize_producer(brokers: &String,config: &Config) -> FutureProducer {
+pub fn initialize_producer(broker: &str,config: &CharcoalConfig) -> FutureProducer {
+
 
     let mut kafka_config = ClientConfig::new()
-        .set("bootstrap.servers", brokers)
+        .set("bootstrap.servers", broker)
         .clone();
 
     kafka_config = configure_kafka_ssl(kafka_config,config);
@@ -54,10 +58,10 @@ pub fn initialize_producer(brokers: &String,config: &Config) -> FutureProducer {
     producer
 }
 
-pub async fn initialize_consume_generic(brokers: &String, callback: impl AsyncFn4<Message, Config,Arc<Sender<ProcessorIPCData>>,Option<Arc<Songbird>>,Output = Result<()>>, ipc: &mut ProcessorIPC, initialized_callback: impl AsyncFn1<Config, Output = ()>,songbird: Option<Arc<Songbird>>,group_id: &String) {
+pub async fn initialize_client(brokers: &String, config: &CharcoalConfig) -> StreamConsumer {
 
     let mut kafka_config = ClientConfig::new()
-        .set("group.id", group_id)
+        .set("group.id", nanoid!())
         .set("bootstrap.servers", brokers)
         .set("enable.partition.eof", "false")
         .set("session.timeout.ms", "6000")
@@ -70,8 +74,10 @@ pub async fn initialize_consume_generic(brokers: &String, callback: impl AsyncFn
     let consumer : StreamConsumer = kafka_config.create().expect("Failed to create Consumer");
 
     consumer
-        .subscribe(&[&config.kafka.kafka_topic])
+        .subscribe(&[&config.kafka_topic])
         .expect("Can't subscribe to specified topic");
+
+    consumer
 
 
     
