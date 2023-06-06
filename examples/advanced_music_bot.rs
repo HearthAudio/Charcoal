@@ -10,7 +10,7 @@ use log::error;
 use serenity::client::Context;
 use charcoal_client::serenity::{CharcoalKey, SerenityInit};
 
-use charcoal_client::{CharcoalConfig, get_handler_from_serenity, get_handler_from_serenity_mutable, PlayerObject, SSLConfig};
+use charcoal_client::{CharcoalConfig, get_handler_from_serenity, get_handler_from_serenity_mutable, PlayerObject, SASLConfig, SSLConfig};
 use charcoal_client::actions::channel_manager::ChannelManager;
 use charcoal_client::actions::player::Player;
 use charcoal_client::actions::track_manager::TrackManager;
@@ -89,11 +89,11 @@ async fn main() {
         .framework(framework)
         // Add a Kafka URL here to connect to the broker
         .register_charcoal(env::var("KAFKA_BROKER").expect("Expected KAFKA_BROKER env variable"),CharcoalConfig {
-            ssl: Some(SSLConfig {
-                ssl_ca: "ca.pem".to_string(),
-                ssl_cert: "service.cert".to_string(),
-                ssl_key: "service.key".to_string()
+            sasl: Some(SASLConfig {
+                kafka_username: env::var("KAFKA_USER").expect("Expected KAFKA_BROKER env variable"),
+                kafka_password: env::var("KAFKA_PASS").expect("Expected KAFKA_BROKER env variable"),
             }),
+            ssl: None,
             kafka_topic: "communication".to_string()
         })
         .await

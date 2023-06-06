@@ -1,10 +1,20 @@
 use std::collections::HashMap;
+use std::future::Future;
 use std::sync::Arc;
+use std::task::Poll;
+use std::time::Duration;
+use futures::Stream;
 use hearth_interconnect::errors::ErrorReport;
 use hearth_interconnect::messages::{Message, Metadata};
 use kafka::consumer::Consumer;
 use kafka::producer::Producer;
 use log::{debug, error};
+use rdkafka::consumer::{BaseConsumer, StreamConsumer};
+use rdkafka::error::KafkaResult;
+use rdkafka::Message as KafkaMessage;
+use rdkafka::producer::FutureProducer;
+use rdkafka::*;
+use futures::*;
 
 use tokio::sync::broadcast::{Receiver, Sender};
 use crate::background::connector::send_message;
@@ -124,34 +134,43 @@ pub async fn parse_message(message: Message, guild_id_to_tx: &mut HashMap<String
     }
 }
 
-pub async fn init_processor(mut rx: Receiver<IPCData>, mut global_tx: Sender<IPCData>, mut consumer: Consumer,mut producer: Producer,config: CharcoalConfig) {
+pub async fn init_processor(mut rx: Receiver<IPCData>, mut global_tx: Sender<IPCData>, mut consumer: BaseConsumer,mut producer: FutureProducer,config: CharcoalConfig) {
     let mut guild_id_to_tx: HashMap<String,Arc<Sender<IPCData>>> = HashMap::new();
     loop {
-        let mss = consumer.poll().unwrap();
-        if mss.is_empty() {
-            debug!("No messages available right now.");
-        }
+        let mss = consumer.poll(Duration::from_millis(25));
+        if let Some(p) = mss {
+            match p {
+                Ok(m) => {
+                    let payload = m.payload();
 
-        for ms in mss.iter() {
-            for m in ms.messages() {
-                let parsed_message : Result<Message,serde_json::Error> = serde_json::from_slice(m.value);
-                match parsed_message {
-                    Ok(message) => {
-                        parse_message(message,&mut guild_id_to_tx,&mut global_tx).await;
-                    },
-                    Err(e) => error!("{} - Failed to parse message",e),
-                }
+                    match payload {
+                        Some(payload) => {
+                            let parsed_message : Result<Message,serde_json::Error> = serde_json::from_slice(payload);
+
+                            match parsed_message {
+                                Ok(m) => {
+                                    parse_message(m,&mut guild_id_to_tx,&mut global_tx).await;
+                                },
+                                Err(e) => error!("{}",e)
+                            }
+                        },
+                        None => {
+                            error!("Received No Payload!");
+                        }
+
+                    }
+
+                },
+                Err(e) => error!("{}",e)
             }
-            let _ = consumer.consume_messageset(ms);
         }
-        consumer.commit_consumed().unwrap();
         // Receive messages from main function
         let rx_data = rx.try_recv();
         match rx_data {
             Ok(d) => {
                 if let IPCData::FromMain(m) = d {
                     guild_id_to_tx.insert(m.guild_id,m.response_tx);
-                    send_message(&m.message,&config.kafka_topic,&mut producer);
+                    send_message(&m.message,&config.kafka_topic,&mut producer).await;
                 }
 
             },
@@ -163,5 +182,6 @@ pub async fn init_processor(mut rx: Receiver<IPCData>, mut global_tx: Sender<IPC
                 }
             }
         }
+
     }
 }

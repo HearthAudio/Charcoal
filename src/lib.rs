@@ -5,10 +5,9 @@ use std::collections::HashMap;
 use std::sync::{Arc};
 use std::time::Duration;
 use hearth_interconnect::messages::Message;
-use kafka::consumer::Consumer;
-use kafka::producer::Producer;
 use lazy_static::lazy_static;
 use log::{error, info};
+use rdkafka::producer::FutureProducer;
 use tokio::sync::{broadcast, Mutex, RwLock};
 use tokio::sync::broadcast::{Receiver, Sender};
 use tokio::sync::broadcast::error::TryRecvError;
@@ -23,11 +22,12 @@ pub mod background;
 pub(crate) mod constants;
 mod helpers;
 
-use crate::background::connector::{initialize_client, initialize_producer};
+use crate::background::connector::{initialize_producer, initialize_client};
+use rdkafka::consumer::{StreamConsumer};
 
 lazy_static! {
-    pub(crate) static ref PRODUCER: Mutex<Option<Producer>> = Mutex::new(None);
-    pub(crate) static ref CONSUMER: Mutex<Option<Consumer>> = Mutex::new(None);
+    pub(crate) static ref PRODUCER: Mutex<Option<FutureProducer>> = Mutex::new(None);
+    pub(crate) static ref CONSUMER: Mutex<Option<StreamConsumer>> = Mutex::new(None);
     pub(crate) static ref TX: Mutex<Option<Sender<String>>> = Mutex::new(None);
     pub(crate) static ref RX: Mutex<Option<Receiver<String>>> = Mutex::new(None);
 }
@@ -135,6 +135,7 @@ impl Charcoal {
     }
 }
 
+#[derive(Clone)]
 /// Stores SSL Config for Kafka
 pub struct SSLConfig {
     /// Path to the SSL key file
@@ -145,26 +146,33 @@ pub struct SSLConfig {
     pub ssl_cert: String,
 }
 
+#[derive(Clone)]
+pub struct SASLConfig {
+    /// Kafka Username
+    pub kafka_username: String,
+    /// Kafka Password
+    pub kafka_password: String
+}
+
+#[derive(Clone)]
 /// Configuration for charcoal
 pub struct CharcoalConfig {
     /// Configure SSl for kafka. If left as None no SSL is configured
     pub ssl: Option<SSLConfig>,
+    /// Configure SASL/Password and Username Based Authentication for Kafka. If left as None no SASL is configured
+    pub sasl: Option<SASLConfig>,
     /// Kafka topic to connect to. This should be the same one the hearth server(s) are on.
     pub kafka_topic: String
 }
 
 /// Initializes Charcoal Instance
 pub async fn init_charcoal(broker: String,config: CharcoalConfig) -> Arc<Mutex<Charcoal>>  {
-    let brokers = vec![broker];
 
     // This isn't great we should really switch to rdkafka instead of kafka
 
-    let consumer = Consumer::from_client(initialize_client(&brokers,&config))
-        .with_topic(config.kafka_topic.clone())
-        .create()
-        .unwrap();
+    let consumer = initialize_client(&broker,&config).await;
 
-    let producer : Producer = initialize_producer(initialize_client(&brokers,&config));
+    let producer = initialize_producer(&broker,&config);
 
     let (tx, rx) = broadcast::channel(16);
 
