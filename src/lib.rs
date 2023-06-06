@@ -145,10 +145,19 @@ pub struct SSLConfig {
     pub ssl_cert: String,
 }
 
+pub struct SASLConfig {
+    /// Kafka Username
+    pub kafka_username: String,
+    /// Kafka Password
+    pub kafka_password: String
+}
+
 /// Configuration for charcoal
 pub struct CharcoalConfig {
     /// Configure SSl for kafka. If left as None no SSL is configured
     pub ssl: Option<SSLConfig>,
+    /// Configure SASL/Password and Username Based Authentication for Kafka. If left as None no SASL is configured
+    pub sasl: Option<SASLConfig>,
     /// Kafka topic to connect to. This should be the same one the hearth server(s) are on.
     pub kafka_topic: String
 }

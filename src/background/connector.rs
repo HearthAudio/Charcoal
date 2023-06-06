@@ -7,86 +7,83 @@ use std::ops::Sub;
 use std::process;
 
 use std::time::{Duration};
+use async_fn_traits::AsyncFn4;
+use futures::SinkExt;
 use hearth_interconnect::messages::{Message};
-use kafka;
 
-use kafka::producer::{Producer, Record, RequiredAcks};
 use log::{error, info};
 use snafu::prelude::*;
 use openssl;
+use rdkafka::ClientConfig;
+use rdkafka::consumer::StreamConsumer;
+use rdkafka::producer::{FutureProducer, FutureRecord};
 use tokio::sync::broadcast::error::TryRecvError;
 use tokio::sync::broadcast::Receiver;
 use tokio::time::sleep;
 use crate::background::processor::IPCData;
 use crate::CharcoalConfig;
 use crate::helpers::get_unix_timestamp;
-use self::kafka::client::{KafkaClient, SecurityConfig};
 use self::openssl::ssl::{SslConnector, SslFiletype, SslMethod, SslVerifyMode};
-
-pub fn initialize_client(brokers: &Vec<String>,config: &CharcoalConfig) -> KafkaClient {
-    let mut client : KafkaClient;
-
-    if config.ssl.is_some() {
-        // ~ OpenSSL offers a variety of complex configurations. Here is an example:
-        let mut builder = SslConnector::builder(SslMethod::tls()).unwrap();
-        builder.set_cipher_list("DEFAULT").unwrap();
-        builder.set_verify(SslVerifyMode::PEER);
-
-        let cert_file = config.ssl.as_ref().unwrap().ssl_cert.clone();
-        let cert_key = config.ssl.as_ref().unwrap().ssl_key.clone();
-        let ca_cert = config.ssl.as_ref().unwrap().ssl_ca.clone();
-
-        info!("loading cert-file={}, key-file={}", cert_file, cert_key);
-
-        builder
-            .set_certificate_file(cert_file, SslFiletype::PEM)
-            .unwrap();
-        builder
-            .set_private_key_file(cert_key, SslFiletype::PEM)
-            .unwrap();
-        builder.check_private_key().unwrap();
-
-        builder.set_ca_file(ca_cert).unwrap();
-
-        let connector = builder.build();
-
-        // ~ instantiate KafkaClient with the previous OpenSSL setup
-        client = KafkaClient::new_secure(
-            brokers.to_owned(),
-            SecurityConfig::new(connector)
-        );
-    } else {
-        client = KafkaClient::new(brokers.to_owned());
+fn configure_kafka_ssl(mut kafka_config: ClientConfig,config: &Config) -> ClientConfig {
+    if config.kafka.kafka_use_ssl.unwrap_or(false) {
+        kafka_config
+            .set("security.protocol","ssl")
+            .set("ssl.ca.location",config.kafka.kafka_ssl_ca.clone().expect("Kafka CA Not Found"))
+            .set("ssl.certificate.location",config.kafka.kafka_ssl_cert.clone().expect("Kafka Cert Not Found"))
+            .set("ssl.key.location",config.kafka.kafka_ssl_key.clone().expect("Kafka Key Not Found"));
+    } else if config.kafka.kafka_use_sasl.unwrap_or(false) {
+        kafka_config
+            .set("security.protocol","SASL_SSL")
+            .set("sasl.mechanisms","PLAIN")
+            .set("sasl.username",config.kafka.kafka_username.as_ref().unwrap())
+            .set("sasl.password",config.kafka.kafka_password.as_ref().unwrap());
     }
-
-    // ~ communicate with the brokers
-    match client.load_metadata_all() {
-        Err(e) => {
-            error!("{:?}", e);
-            drop(client);
-            process::exit(1);
-        }
-        Ok(_) => {}
-    }
-    return client;
+    return kafka_config;
 }
 
-pub fn initialize_producer(client: KafkaClient) -> Producer {
-    let producer = Producer::from_client(client)
-        // ~ give the brokers one second time to ack the message
-        .with_ack_timeout(Duration::from_secs(1))
-        // ~ require only one broker to ack the message
-        .with_required_acks(RequiredAcks::One)
-        // ~ build the producer with the above settings
-        .create().unwrap();
-    return producer;
+pub fn initialize_producer(brokers: &String,config: &Config) -> FutureProducer {
+
+    let mut kafka_config = ClientConfig::new()
+        .set("bootstrap.servers", brokers)
+        .clone();
+
+    kafka_config = configure_kafka_ssl(kafka_config,config);
+
+    let producer : FutureProducer = kafka_config.create().expect("Failed to create Producer");
+
+    producer
 }
 
-pub fn send_message(message: &Message, topic: &str, producer: &mut Producer) {
+pub async fn initialize_consume_generic(brokers: &String, callback: impl AsyncFn4<Message, Config,Arc<Sender<ProcessorIPCData>>,Option<Arc<Songbird>>,Output = Result<()>>, ipc: &mut ProcessorIPC, initialized_callback: impl AsyncFn1<Config, Output = ()>,songbird: Option<Arc<Songbird>>,group_id: &String) {
+
+    let mut kafka_config = ClientConfig::new()
+        .set("group.id", group_id)
+        .set("bootstrap.servers", brokers)
+        .set("enable.partition.eof", "false")
+        .set("session.timeout.ms", "6000")
+        .set("enable.auto.commit", "true")
+        .set("security.protocol","ssl")
+        .clone();
+
+    kafka_config = configure_kafka_ssl(kafka_config,config);
+
+    let consumer : StreamConsumer = kafka_config.create().expect("Failed to create Consumer");
+
+    consumer
+        .subscribe(&[&config.kafka.kafka_topic])
+        .expect("Can't subscribe to specified topic");
+
+
+    
+}
+
+pub async fn send_message(message: &Message, topic: &str, producer: &mut FutureProducer) {
     // Send message to worker
     let data = serde_json::to_string(message).unwrap();
-    producer.send(&Record::from_value(topic, data)).unwrap();
+    let record : FutureRecord<String,String> = FutureRecord::to(topic).payload(&data);
+    producer.send(record, Duration::from_secs(1)).await.unwrap();
 }
+
 
 #[derive(Debug, Snafu)]
 pub enum BoilerplateParseIPCError {
