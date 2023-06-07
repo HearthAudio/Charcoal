@@ -55,9 +55,6 @@ impl PlayerObject {
             bg_com_tx: com_tx
         };
 
-        // Create the player job on the Hearth server
-        handler.create_job().await?;
-
         Ok(handler)
     }
 }
