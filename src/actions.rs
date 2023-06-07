@@ -6,6 +6,6 @@ pub mod channel_manager;
 /// Allows you to start playback using an HttpRequest or from a Youtube URL
 pub mod player;
 
+pub mod standard;
 /// Provides functionality that can be used once you start playing a track such as: looping, pausing, and resuming.
 pub mod track_manager;
-pub mod standard;
