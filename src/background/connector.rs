@@ -4,19 +4,19 @@
 
 
 use std::ops::Sub;
-use std::process;
+
 
 use std::time::{Duration};
-use async_fn_traits::AsyncFn4;
+
 use futures::SinkExt;
 use hearth_interconnect::messages::{Message};
 
-use log::{error, info};
+use log::{error};
 use nanoid::nanoid;
 use snafu::prelude::*;
-use openssl;
+
 use rdkafka::ClientConfig;
-use rdkafka::consumer::{BaseConsumer, Consumer, StreamConsumer};
+use rdkafka::consumer::{BaseConsumer, Consumer};
 use rdkafka::producer::{FutureProducer, FutureRecord};
 use tokio::sync::broadcast::error::TryRecvError;
 use tokio::sync::broadcast::Receiver;
@@ -24,7 +24,7 @@ use tokio::time::sleep;
 use crate::background::processor::IPCData;
 use crate::CharcoalConfig;
 use crate::helpers::get_unix_timestamp;
-use self::openssl::ssl::{SslConnector, SslFiletype, SslMethod, SslVerifyMode};
+
 fn configure_kafka_ssl(mut kafka_config: ClientConfig,config: &CharcoalConfig) -> ClientConfig {
     if config.ssl.is_some() {
         let ssl = config.ssl.clone().unwrap();

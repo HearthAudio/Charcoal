@@ -1,5 +1,5 @@
 use std::env;
-use std::sync::Arc;
+
 use std::time::Duration;
 use hearth_interconnect::errors::ErrorReport;
 use hearth_interconnect::messages::Metadata;
@@ -10,7 +10,7 @@ use log::error;
 use serenity::client::Context;
 use charcoal_client::serenity::{CharcoalKey, SerenityInit};
 
-use charcoal_client::{CharcoalConfig, get_handler_from_serenity, get_handler_from_serenity_mutable, PlayerObject, SASLConfig, SSLConfig};
+use charcoal_client::{CharcoalConfig, get_handler_from_serenity, get_handler_from_serenity_mutable, PlayerObject, SASLConfig};
 use charcoal_client::actions::channel_manager::ChannelManager;
 use charcoal_client::actions::player::Player;
 use charcoal_client::actions::track_manager::TrackManager;
@@ -36,8 +36,8 @@ use serenity::{
     prelude::GatewayIntents,
     Result as SerenityResult,
 };
-use serenity::http::Http;
-use serenity::model::id::ChannelId;
+
+
 use charcoal_client::actions::standard::CharcoalEventHandler;
 
 

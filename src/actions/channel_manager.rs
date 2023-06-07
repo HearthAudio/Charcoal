@@ -1,4 +1,4 @@
-use std::sync::Arc;
+
 use std::time::Duration;
 use hearth_interconnect::messages::{JobRequest, Message};
 use hearth_interconnect::worker_communication::{DirectWorkerCommunication, DWCActionType};
@@ -44,8 +44,8 @@ impl ChannelManager for PlayerObject {
         let tx = self.tx.clone();
         let bg_com = self.bg_com_tx.clone();
 
-        let mut worker_id = self.worker_id.clone();
-        let mut job_id = self.job_id.clone();
+        let worker_id = self.worker_id.clone();
+        let job_id = self.job_id.clone();
 
         if !create_job {
             self.bg_com_tx.send(IPCData::new_from_main(Message::DirectWorkerCommunication(DirectWorkerCommunication {

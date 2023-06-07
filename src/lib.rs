@@ -12,7 +12,7 @@ use tokio::sync::{broadcast, Mutex, RwLock};
 use tokio::sync::broadcast::{Receiver, Sender};
 use tokio::sync::broadcast::error::TryRecvError;
 use tokio::time;
-use crate::actions::channel_manager::{ChannelManager, CreateJobError};
+use crate::actions::channel_manager::{CreateJobError};
 use crate::background::processor::{init_processor, IPCData};
 use crate::constants::{EXPIRATION_LAGGED_BY_1, EXPIRATION_LAGGED_BY_2, EXPIRATION_LAGGED_BY_4};
 
@@ -47,7 +47,7 @@ impl PlayerObject {
     pub async fn new(guild_id: String,com_tx: Sender<IPCData>) -> Result<Self,CreateJobError> {
         let (tx, _rx) = broadcast::channel(16);
 
-        let mut handler = PlayerObject {
+        let handler = PlayerObject {
             worker_id: Arc::new(RwLock::new(None)),
             job_id: Arc::new(RwLock::new(None)),
             guild_id,

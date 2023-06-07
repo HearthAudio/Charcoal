@@ -1,17 +1,17 @@
 use std::collections::HashMap;
 use std::future::Future;
 use std::sync::Arc;
-use std::task::Poll;
+
 use std::time::Duration;
-use futures::Stream;
+
 use hearth_interconnect::errors::ErrorReport;
 use hearth_interconnect::messages::{Message, Metadata};
 use log::{debug, error};
-use rdkafka::consumer::{BaseConsumer, StreamConsumer};
-use rdkafka::error::KafkaResult;
+use rdkafka::consumer::{BaseConsumer};
+
 use rdkafka::Message as KafkaMessage;
 use rdkafka::producer::FutureProducer;
-use rdkafka::*;
+
 use futures::*;
 
 use tokio::sync::broadcast::{Receiver, Sender};
@@ -132,7 +132,7 @@ pub async fn parse_message(message: Message, guild_id_to_tx: &mut HashMap<String
     }
 }
 
-pub async fn init_processor(mut rx: Receiver<IPCData>, mut global_tx: Sender<IPCData>, mut consumer: BaseConsumer,mut producer: FutureProducer,config: CharcoalConfig) {
+pub async fn init_processor(mut rx: Receiver<IPCData>, mut global_tx: Sender<IPCData>, consumer: BaseConsumer,mut producer: FutureProducer,config: CharcoalConfig) {
     let mut guild_id_to_tx: HashMap<String,Arc<Sender<IPCData>>> = HashMap::new();
     loop {
         let mss = consumer.poll(Duration::from_millis(25));
