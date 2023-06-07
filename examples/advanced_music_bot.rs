@@ -201,8 +201,6 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
     let manager = r.get::<CharcoalKey>();
     let mx = manager.unwrap().lock().await;
 
-    println!("GLOCK");
-
     // Check if we have already created the player by checking if the player's GuildID exists in the Players HashMap
     // Stored inside of the Charcoal Instance.
     // If we have already created the player just join the channel

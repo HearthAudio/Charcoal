@@ -72,6 +72,7 @@ async fn main() {
                     ssl_cert: "service.cert".to_string(),
                     ssl_key: "service.key".to_string(),
                 }),
+                sasl: None,
                 kafka_topic: "communication".to_string(),
             },
         )
@@ -178,7 +179,7 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
             "This should never happen because we checked the key exists in the if check above",
         );
         // Join the channel
-        handler.join_channel(connect_to.to_string()).await;
+        handler.join_channel(connect_to.to_string(),false).await;
     } else {
         // If we have not created the player create it and then join the channel
         let handler = PlayerObject::new(guild_id.to_string(), mx.tx.clone()).await;
@@ -186,7 +187,7 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
         match handler {
             Ok(mut handler) => {
                 // Join the channel
-                handler.join_channel(connect_to.to_string()).await;
+                handler.join_channel(connect_to.to_string(),true).await;
                 // Insert the newly created PlayerObject into the HashMap so we can use it later
                 mx.players
                     .write()
