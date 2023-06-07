@@ -85,18 +85,18 @@ impl ChannelManager for PlayerObject {
                 true
             },tx.subscribe(),Duration::from_secs(3)).await.unwrap();
             //
-            // bg_com.send(IPCData::new_from_main(Message::DirectWorkerCommunication(DirectWorkerCommunication {
-            //     job_id: job_id.as_ref().clone().unwrap(),
-            //     worker_id:  worker_id.as_ref().clone().unwrap(),
-            //     guild_id: guild_id.clone(),
-            //     voice_channel_id: Some(voice_channel_id),
-            //     play_audio_url: None,
-            //     action_type: DWCActionType::JoinChannel,
-            //     request_id: Some(nanoid!()),
-            //     new_volume: None,
-            //     seek_position: None,
-            //     loop_times: None,
-            // }), tx.clone(),guild_id)).context(FailedToSendIPCRequestSnafu).unwrap();
+            bg_com.send(IPCData::new_from_main(Message::DirectWorkerCommunication(DirectWorkerCommunication {
+                job_id: job_id_a.clone().unwrap(),
+                worker_id:  worker_id_a.clone().unwrap(),
+                guild_id: guild_id.clone(),
+                voice_channel_id: Some(voice_channel_id),
+                play_audio_url: None,
+                action_type: DWCActionType::JoinChannel,
+                request_id: Some(nanoid!()),
+                new_volume: None,
+                seek_position: None,
+                loop_times: None,
+            }), tx.clone(),guild_id)).context(FailedToSendIPCRequestSnafu).unwrap();
         });
 
         Ok(())
