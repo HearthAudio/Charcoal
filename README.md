@@ -3,7 +3,6 @@
     Charcoal
 </h1>
 <div align="center">
-<img src="assets/beta.png" align="center" height="30" />
 </div>
 <p align="center">
 <img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/Hearth-Industries/Charcoal/rust.yml">
