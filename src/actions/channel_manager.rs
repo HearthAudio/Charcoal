@@ -78,7 +78,6 @@ impl ChannelManager for PlayerObject {
                     if let Message::ExternalQueueJobResponse(q) = bg.message {
                         *job_id_a = Some(q.job_id);
                         *worker_id_a = Some(q.worker_id);
-                        println!("Configured IDs with Response");
                         return false;
                     }
                 }

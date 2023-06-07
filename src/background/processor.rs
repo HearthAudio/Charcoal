@@ -94,7 +94,6 @@ pub async fn parse_message(message: Message, guild_id_to_tx: &mut HashMap<String
         }
         Message::ExternalQueueJobResponse(r) => {
             let tx = guild_id_to_tx.get_mut(&r.guild_id);
-            println!("Got EQJR");
             match tx {
                 Some(tx) => {
                     let r = tx.send(IPCData::new_from_background(message));
@@ -168,10 +167,8 @@ pub async fn init_processor(mut rx: Receiver<IPCData>, mut global_tx: Sender<IPC
         match rx_data {
             Ok(d) => {
                 if let IPCData::FromMain(m) = d {
-                    println!("RECV FM");
                     guild_id_to_tx.insert(m.guild_id,m.response_tx);
                     send_message(&m.message,&config.kafka_topic,&mut producer).await;
-                    println!("Sent KAFKA MSG!");
                 }
 
             },

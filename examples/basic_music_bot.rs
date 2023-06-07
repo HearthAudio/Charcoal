@@ -149,7 +149,6 @@ async fn resume(ctx: &Context, msg: &Message) -> CommandResult {
 #[command]
 #[only_in(guilds)]
 async fn join(ctx: &Context, msg: &Message) -> CommandResult {
-    println!("Joining");
     let guild = msg.guild(&ctx.cache).unwrap();
     let guild_id = guild.id;
 
