@@ -9,6 +9,7 @@ use log::info;
 
 use kanal::{Receiver, Sender};
 use prokio::time::sleep;
+use prokio::{Runtime, RuntimeBuilder};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -59,11 +60,11 @@ pub struct Charcoal {
 }
 
 impl Charcoal {
-    fn start_global_checker(&mut self) {
+    fn start_global_checker(&mut self, runtime: Runtime) {
         info!("Started global data checker!");
         let t_players = self.players.clone();
         let from_bg_rx_t = self.from_bg_rx.clone();
-        prokio::spawn_local(async move {
+        runtime.spawn_pinned(move || async move {
             loop {
                 sleep(Duration::from_millis(250)).await;
                 let catch = from_bg_rx_t.try_recv();
@@ -146,7 +147,7 @@ pub async fn init_charcoal(broker: String, config: CharcoalConfig) -> Arc<Mutex<
         from_bg_rx,
     };
 
-    c_instance.start_global_checker(); // Start checking for expired jobs
+    c_instance.start_global_checker(runtime); // Start checking for expired jobs
 
     Arc::new(Mutex::new(c_instance))
 }
