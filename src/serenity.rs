@@ -1,9 +1,9 @@
 //! Provides ClientBuilder extension for super easy use with serenity
-use futures::executor;
-use std::sync::{Arc, Mutex};
-
 use crate::{init_charcoal, Charcoal, CharcoalConfig};
+use futures::executor;
 use serenity::prelude::TypeMapKey;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 // pub use serenity::client::ClientBuilder;
 pub use serenity::client::ClientBuilder;
 use serenity::*;

@@ -5,16 +5,15 @@ use crate::actions::channel_manager::CreateJobError;
 use crate::background::processor::{init_processor, IPCData};
 use hearth_interconnect::messages::Message;
 
-use log::{info};
+use log::info;
 
-use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
-use std::time::Duration;
-
-
-use std::sync::Mutex;
 use kanal::{Receiver, Sender};
 use prokio::time::sleep;
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 
 pub mod actions;
 pub mod background;
@@ -23,7 +22,6 @@ mod helpers;
 pub mod serenity;
 
 use crate::background::connector::{initialize_client, initialize_producer};
-
 
 /// Represents an instance in a voice channel
 pub struct PlayerObject {
@@ -57,7 +55,7 @@ impl PlayerObject {
 pub struct Charcoal {
     pub players: Arc<RwLock<HashMap<String, PlayerObject>>>, // Guild ID to PlayerObject
     pub to_bg_tx: Sender<IPCData>,
-    from_bg_rx: Receiver<IPCData>
+    from_bg_rx: Receiver<IPCData>,
 }
 
 impl Charcoal {
@@ -76,12 +74,12 @@ impl Charcoal {
                                 match bg.message {
                                     Message::ExternalJobExpired(je) => {
                                         info!("Job Expired: {}", je.job_id);
-                                        let mut t_p_write = t_players.write().unwrap();
+                                        let mut t_p_write = t_players.write().await;
                                         t_p_write.remove(&je.guild_id);
                                     }
                                     Message::WorkerShutdownAlert(shutdown_alert) => {
                                         info!("Worker shutdown! Cancelling Players!");
-                                        let mut t_p_write = t_players.write().unwrap();
+                                        let mut t_p_write = t_players.write().await;
                                         for job_id in shutdown_alert.affected_guild_ids {
                                             t_p_write.remove(&job_id);
                                         }
@@ -94,7 +92,6 @@ impl Charcoal {
                     Err(_e) => {} //TODO: Handle
                 }
             }
-
         });
     }
 }
@@ -131,23 +128,22 @@ pub struct CharcoalConfig {
 
 /// Initializes Charcoal Instance
 pub async fn init_charcoal(broker: String, config: CharcoalConfig) -> Arc<Mutex<Charcoal>> {
-    // This isn't great we should really switch to rdkafka instead of kafka
-
     let consumer = initialize_client(&broker, &config).await;
 
     let producer = initialize_producer(&broker, &config);
 
     let (to_bg_tx, to_bg_rx) = kanal::unbounded();
-    let (from_bg_tx,from_bg_rx) = kanal::unbounded();
+    let (from_bg_tx, from_bg_rx) = kanal::unbounded();
+    let runtime = prokio::Runtime::default();
 
-    prokio::spawn_local(async move {
+    runtime.spawn_pinned(move || async move {
         init_processor(to_bg_rx, from_bg_tx, consumer, producer, config).await;
     });
 
     let mut c_instance = Charcoal {
         players: Arc::new(RwLock::new(HashMap::new())),
         to_bg_tx,
-        from_bg_rx
+        from_bg_rx,
     };
 
     c_instance.start_global_checker(); // Start checking for expired jobs

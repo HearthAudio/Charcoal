@@ -29,7 +29,7 @@ impl Player for PlayerObject {
         self.bg_com_tx
             .send(IPCData::new_from_main(
                 Message::DirectWorkerCommunication(DirectWorkerCommunication {
-                    job_id: self.job_id.read().unwrap().clone().unwrap(),
+                    job_id: self.job_id.read().await.clone().unwrap(),
                     action_type: DWCActionType::PlayDirectLink,
                     play_audio_url: Some(url),
                     guild_id: self.guild_id.clone(),
@@ -37,7 +37,7 @@ impl Player for PlayerObject {
                     new_volume: None,
                     seek_position: None,
                     loop_times: None,
-                    worker_id: self.worker_id.clone().read().unwrap().clone().unwrap(),
+                    worker_id: self.worker_id.clone().read().await.clone().unwrap(),
                     voice_channel_id: None,
                 }),
                 self.tx.clone(),
@@ -51,7 +51,7 @@ impl Player for PlayerObject {
         self.bg_com_tx
             .send(IPCData::new_from_main(
                 Message::DirectWorkerCommunication(DirectWorkerCommunication {
-                    job_id: self.job_id.clone().read().unwrap().clone().unwrap(),
+                    job_id: self.job_id.clone().read().await.clone().unwrap(),
                     action_type: DWCActionType::PlayFromYoutube,
                     play_audio_url: Some(url),
                     guild_id: self.guild_id.clone(),
@@ -59,7 +59,7 @@ impl Player for PlayerObject {
                     new_volume: None,
                     seek_position: None,
                     loop_times: None,
-                    worker_id: self.worker_id.clone().read().unwrap().clone().unwrap(),
+                    worker_id: self.worker_id.clone().read().await.clone().unwrap(),
                     voice_channel_id: None,
                 }),
                 self.tx.clone(),

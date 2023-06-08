@@ -1,13 +1,13 @@
-use async_trait::async_trait;
-use hearth_interconnect::messages::Message;
-use hearth_interconnect::worker_communication::{DWCActionType, DirectWorkerCommunication};
-use std::time::Duration;
-use kanal::SendError;
-use nanoid::nanoid;
 use crate::background::connector::BoilerplateParseIPCError;
 use crate::background::processor::IPCData;
 use crate::PlayerObject;
+use async_trait::async_trait;
+use hearth_interconnect::messages::Message;
+use hearth_interconnect::worker_communication::{DWCActionType, DirectWorkerCommunication};
+use kanal::SendError;
+use nanoid::nanoid;
 use snafu::prelude::*;
+use std::time::Duration;
 
 #[derive(Debug, Snafu)]
 pub enum TrackActionError {
@@ -43,7 +43,7 @@ impl TrackManager for PlayerObject {
         self.bg_com_tx
             .send(IPCData::new_from_main(
                 Message::DirectWorkerCommunication(DirectWorkerCommunication {
-                    job_id: self.job_id.read().unwrap().clone().unwrap(),
+                    job_id: self.job_id.read().await.clone().unwrap(),
                     action_type: DWCActionType::SetPlaybackVolume,
                     play_audio_url: None,
                     guild_id: self.guild_id.clone(),
@@ -51,7 +51,7 @@ impl TrackManager for PlayerObject {
                     new_volume: Some(playback_volume),
                     seek_position: None,
                     loop_times: None,
-                    worker_id: self.worker_id.read().unwrap().clone().unwrap(),
+                    worker_id: self.worker_id.read().await.clone().unwrap(),
                     voice_channel_id: None,
                 }),
                 self.tx.clone(),
@@ -64,7 +64,7 @@ impl TrackManager for PlayerObject {
         self.bg_com_tx
             .send(IPCData::new_from_main(
                 Message::DirectWorkerCommunication(DirectWorkerCommunication {
-                    job_id: self.job_id.read().unwrap().clone().unwrap(),
+                    job_id: self.job_id.read().await.clone().unwrap(),
                     action_type: DWCActionType::ForceStopLoop,
                     play_audio_url: None,
                     guild_id: self.guild_id.clone(),
@@ -72,7 +72,7 @@ impl TrackManager for PlayerObject {
                     new_volume: None,
                     seek_position: None,
                     loop_times: None,
-                    worker_id: self.worker_id.read().unwrap().clone().unwrap(),
+                    worker_id: self.worker_id.read().await.clone().unwrap(),
                     voice_channel_id: None,
                 }),
                 self.tx.clone(),
@@ -86,7 +86,7 @@ impl TrackManager for PlayerObject {
         self.bg_com_tx
             .send(IPCData::new_from_main(
                 Message::DirectWorkerCommunication(DirectWorkerCommunication {
-                    job_id: self.job_id.read().unwrap().clone().unwrap(),
+                    job_id: self.job_id.read().await.clone().unwrap(),
                     action_type: DWCActionType::LoopForever,
                     play_audio_url: None,
                     guild_id: self.guild_id.clone(),
@@ -94,7 +94,7 @@ impl TrackManager for PlayerObject {
                     new_volume: None,
                     seek_position: None,
                     loop_times: None,
-                    worker_id: self.worker_id.read().unwrap().clone().unwrap(),
+                    worker_id: self.worker_id.read().await.clone().unwrap(),
                     voice_channel_id: None,
                 }),
                 self.tx.clone(),
@@ -109,7 +109,7 @@ impl TrackManager for PlayerObject {
         self.bg_com_tx
             .send(IPCData::new_from_main(
                 Message::DirectWorkerCommunication(DirectWorkerCommunication {
-                    job_id: self.job_id.read().unwrap().clone().unwrap(),
+                    job_id: self.job_id.read().await.clone().unwrap(),
                     action_type: DWCActionType::LoopXTimes,
                     play_audio_url: None,
                     guild_id: self.guild_id.clone(),
@@ -117,7 +117,7 @@ impl TrackManager for PlayerObject {
                     new_volume: None,
                     seek_position: None,
                     loop_times: Some(times),
-                    worker_id: self.worker_id.read().unwrap().clone().unwrap(),
+                    worker_id: self.worker_id.read().await.clone().unwrap(),
                     voice_channel_id: None,
                 }),
                 self.tx.clone(),
@@ -131,7 +131,7 @@ impl TrackManager for PlayerObject {
         self.bg_com_tx
             .send(IPCData::new_from_main(
                 Message::DirectWorkerCommunication(DirectWorkerCommunication {
-                    job_id: self.job_id.read().unwrap().clone().unwrap(),
+                    job_id: self.job_id.read().await.clone().unwrap(),
                     action_type: DWCActionType::SeekToPosition,
                     play_audio_url: None,
                     guild_id: self.guild_id.clone(),
@@ -139,7 +139,7 @@ impl TrackManager for PlayerObject {
                     new_volume: None,
                     seek_position: Some(position.as_millis() as u64),
                     loop_times: None,
-                    worker_id: self.worker_id.read().unwrap().clone().unwrap(),
+                    worker_id: self.worker_id.read().await.clone().unwrap(),
                     voice_channel_id: None,
                 }),
                 self.tx.clone(),
@@ -153,7 +153,7 @@ impl TrackManager for PlayerObject {
         self.bg_com_tx
             .send(IPCData::new_from_main(
                 Message::DirectWorkerCommunication(DirectWorkerCommunication {
-                    job_id: self.job_id.read().unwrap().clone().unwrap(),
+                    job_id: self.job_id.read().await.clone().unwrap(),
                     action_type: DWCActionType::ResumePlayback,
                     play_audio_url: None,
                     guild_id: self.guild_id.clone(),
@@ -161,7 +161,7 @@ impl TrackManager for PlayerObject {
                     new_volume: None,
                     seek_position: None,
                     loop_times: None,
-                    worker_id: self.worker_id.read().unwrap().clone().unwrap(),
+                    worker_id: self.worker_id.read().await.clone().unwrap(),
                     voice_channel_id: None,
                 }),
                 self.tx.clone(),
@@ -175,7 +175,7 @@ impl TrackManager for PlayerObject {
         self.bg_com_tx
             .send(IPCData::new_from_main(
                 Message::DirectWorkerCommunication(DirectWorkerCommunication {
-                    job_id: self.job_id.read().unwrap().clone().unwrap(),
+                    job_id: self.job_id.read().await.clone().unwrap(),
                     action_type: DWCActionType::PausePlayback,
                     play_audio_url: None,
                     guild_id: self.guild_id.clone(),
@@ -183,7 +183,7 @@ impl TrackManager for PlayerObject {
                     new_volume: None,
                     seek_position: None,
                     loop_times: None,
-                    worker_id: self.worker_id.read().unwrap().clone().unwrap(),
+                    worker_id: self.worker_id.read().await.clone().unwrap(),
                     voice_channel_id: None,
                 }),
                 self.tx.clone(),
@@ -197,7 +197,7 @@ impl TrackManager for PlayerObject {
         self.bg_com_tx
             .send(IPCData::new_from_main(
                 Message::DirectWorkerCommunication(DirectWorkerCommunication {
-                    job_id: self.job_id.read().unwrap().clone().unwrap(),
+                    job_id: self.job_id.read().await.clone().unwrap(),
                     action_type: DWCActionType::GetMetaData,
                     play_audio_url: None,
                     guild_id: self.guild_id.clone(),
@@ -205,7 +205,7 @@ impl TrackManager for PlayerObject {
                     new_volume: None,
                     seek_position: None,
                     loop_times: None,
-                    worker_id: self.worker_id.read().unwrap().clone().unwrap(),
+                    worker_id: self.worker_id.read().await.clone().unwrap(),
                     voice_channel_id: None,
                 }),
                 self.tx.clone(),
