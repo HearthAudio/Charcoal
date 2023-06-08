@@ -19,7 +19,7 @@ impl PlayerObject {
         &mut self,
         event_handler: impl CharcoalEventHandler + Send + 'static,
     ) {
-        let mut t_rx = self.rx.clone();
+        let t_rx = self.rx.clone();
         let guild_id = self.guild_id.clone();
         prokio::spawn_local(async move {
             loop {

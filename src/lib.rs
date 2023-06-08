@@ -4,14 +4,14 @@
 use crate::actions::channel_manager::CreateJobError;
 use crate::background::processor::{init_processor, IPCData};
 use hearth_interconnect::messages::Message;
-use lazy_static::lazy_static;
-use log::{error, info};
-use rdkafka::producer::FutureProducer;
+
+use log::{info};
+
 use std::collections::HashMap;
-use std::sync::{Arc, OnceLock, RwLock};
+use std::sync::{Arc, RwLock};
 use std::time::Duration;
-use futures::StreamExt;
-use prokio::time;
+
+
 use std::sync::Mutex;
 use kanal::{Receiver, Sender};
 use prokio::time::sleep;
@@ -23,7 +23,7 @@ mod helpers;
 pub mod serenity;
 
 use crate::background::connector::{initialize_client, initialize_producer};
-use rdkafka::consumer::StreamConsumer;
+
 
 /// Represents an instance in a voice channel
 pub struct PlayerObject {
@@ -91,7 +91,7 @@ impl Charcoal {
                             }
                         }
                     }
-                    Err(e) => {} //TODO: Handle
+                    Err(_e) => {} //TODO: Handle
                 }
             }
 

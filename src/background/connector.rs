@@ -12,9 +12,9 @@ use snafu::prelude::*;
 use std::ops::Sub;
 use std::sync::Arc;
 use std::time::Duration;
-use futures::channel::mpsc::UnboundedReceiver;
+
 use kanal::Receiver;
-use prokio::pinned::mpsc::TryRecvError;
+
 use prokio::time::sleep;
 
 fn configure_kafka_ssl(mut kafka_config: ClientConfig, config: &CharcoalConfig) -> ClientConfig {
@@ -82,7 +82,7 @@ pub enum BoilerplateParseIPCError {
 
 pub async fn boilerplate_parse_ipc<T>(
     mut ipc_parser: T,
-    mut rx: Arc<Receiver<IPCData>>,
+    rx: Arc<Receiver<IPCData>>,
     timeout: Duration,
 ) -> Result<(), BoilerplateParseIPCError>
 where

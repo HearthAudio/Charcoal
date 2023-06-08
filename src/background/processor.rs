@@ -136,7 +136,7 @@ pub async fn parse_message(
 }
 
 pub async fn init_processor(
-    mut to_bg_rx: Receiver<IPCData>,
+    to_bg_rx: Receiver<IPCData>,
     mut from_bg_tx: Sender<IPCData>,
     consumer: BaseConsumer,
     mut producer: FutureProducer,
