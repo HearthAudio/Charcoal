@@ -11,9 +11,9 @@ use rdkafka::ClientConfig;
 use snafu::prelude::*;
 use std::ops::Sub;
 use std::time::Duration;
-use tokio::sync::broadcast::error::TryRecvError;
-use tokio::sync::broadcast::Receiver;
-use tokio::time::sleep;
+use futures::channel::mpsc::UnboundedReceiver;
+use prokio::pinned::mpsc::TryRecvError;
+use prokio::time::sleep;
 
 fn configure_kafka_ssl(mut kafka_config: ClientConfig, config: &CharcoalConfig) -> ClientConfig {
     if config.ssl.is_some() {
@@ -80,7 +80,7 @@ pub enum BoilerplateParseIPCError {
 
 pub async fn boilerplate_parse_ipc<T>(
     mut ipc_parser: T,
-    mut rx: Receiver<IPCData>,
+    mut rx: UnboundedReceiver<IPCData>,
     timeout: Duration,
 ) -> Result<(), BoilerplateParseIPCError>
 where
@@ -89,13 +89,14 @@ where
     let start_time = get_unix_timestamp();
     let mut run = true;
     while run {
-        let rxm = rx.try_recv();
+        let rxm = rx.try_next();
         match rxm {
             Ok(m) => {
-                run = ipc_parser(m);
+                if m.is_some() {
+                    run = ipc_parser(m.unwrap());
+                }
             }
             Err(e) => match e {
-                TryRecvError::Empty => {}
                 _ => {
                     error!("{}", e);
                 }

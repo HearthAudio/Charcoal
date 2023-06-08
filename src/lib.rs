@@ -9,13 +9,13 @@ use lazy_static::lazy_static;
 use log::{error, info};
 use rdkafka::producer::FutureProducer;
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
-use tokio::sync::broadcast::error::TryRecvError;
-use tokio::sync::broadcast::{Receiver, Sender};
-use tokio::sync::{broadcast, Mutex, RwLock};
-use tokio::time;
-
+use futures::StreamExt;
+use prokio::pinned::RwLock;
+use prokio::pinned::mpsc::*;
+use prokio::time;
+use std::sync::Mutex;
 pub mod actions;
 pub mod background;
 pub(crate) mod constants;
@@ -25,32 +25,32 @@ pub mod serenity;
 use crate::background::connector::{initialize_client, initialize_producer};
 use rdkafka::consumer::StreamConsumer;
 
-lazy_static! {
-    pub(crate) static ref PRODUCER: Mutex<Option<FutureProducer>> = Mutex::new(None);
-    pub(crate) static ref CONSUMER: Mutex<Option<StreamConsumer>> = Mutex::new(None);
-    pub(crate) static ref TX: Mutex<Option<Sender<String>>> = Mutex::new(None);
-    pub(crate) static ref RX: Mutex<Option<Receiver<String>>> = Mutex::new(None);
-}
+pub(crate) static PRODUCER: OnceLock<Mutex<Option<FutureProducer>>> = OnceLock::new();
+pub(crate) static CONSUMER: OnceLock<Mutex<Option<StreamConsumer>>> = OnceLock::new();
+// pub(crate) static TX: OnceLock<Mutex<Option<UnboundedSender<String>>>> = OnceLock::new();
+// pub(crate) static RX: OnceLock<Mutex<Option<UnboundedReceiver<String>>>> = OnceLock::new();
 
 /// Represents an instance in a voice channel
 pub struct PlayerObject {
     worker_id: Arc<RwLock<Option<String>>>,
     job_id: Arc<RwLock<Option<String>>>,
     guild_id: String,
-    tx: Arc<Sender<IPCData>>,
-    bg_com_tx: Sender<IPCData>,
+    tx: Arc<UnboundedSender<IPCData>>,
+    rx: Arc<UnboundedReceiver<IPCData>>,
+    bg_com_tx: UnboundedSender<IPCData>,
 }
 
 impl PlayerObject {
     /// Creates a new Player Object that can then be joined to channel and used to playback audio
-    pub async fn new(guild_id: String, com_tx: Sender<IPCData>) -> Result<Self, CreateJobError> {
-        let (tx, _rx) = broadcast::channel(16);
+    pub async fn new(guild_id: String, com_tx: UnboundedSender<IPCData>) -> Result<Self, CreateJobError> {
+        let (tx, rx) = unbounded();
 
         let handler = PlayerObject {
             worker_id: Arc::new(RwLock::new(None)),
             job_id: Arc::new(RwLock::new(None)),
             guild_id,
             tx: Arc::new(tx),
+            rx: Arc::new(rx),
             bg_com_tx: com_tx,
         };
 
@@ -61,77 +61,47 @@ impl PlayerObject {
 /// Stores Charcoal instance
 pub struct Charcoal {
     pub players: Arc<RwLock<HashMap<String, PlayerObject>>>, // Guild ID to PlayerObject
-    pub tx: Sender<IPCData>,
-    pub rx: Receiver<IPCData>,
+    pub to_bg_tx: UnboundedSender<IPCData>,
+    from_bg_rx: UnboundedReceiver<IPCData>
 }
 
 impl Charcoal {
     fn start_global_checker(&mut self) {
         info!("Started global data checker!");
-        let mut rxx = self.tx.subscribe();
         let t_players = self.players.clone();
         let mut tick_adjustments = 0;
-        tokio::task::spawn(async move {
+        prokio::spawn_local(async move {
             let mut interval = time::interval(Duration::from_secs(1));
-
-            loop {
-                interval.tick().await;
-                let catch = rxx.try_recv();
-                match catch {
-                    Ok(c) => {
-                        if let IPCData::FromBackground(bg) = c {
-                            match bg.message {
-                                Message::ExternalJobExpired(je) => {
-                                    info!("Job Expired: {}", je.job_id);
-                                    let mut t_p_write = t_players.write().await;
-                                    t_p_write.remove(&je.guild_id);
-                                }
-                                Message::WorkerShutdownAlert(shutdown_alert) => {
-                                    info!("Worker shutdown! Cancelling Players!");
-                                    let mut t_p_write = t_players.write().await;
-                                    for job_id in shutdown_alert.affected_guild_ids {
-                                        t_p_write.remove(&job_id);
+            let _ = interval.map( |x| {
+                futures::executor::block_on(async move {
+                    let catch = self.from_bg_rx.try_next();
+                    match catch {
+                        Ok(c) => {
+                            if c.is_some() {
+                                if let IPCData::FromBackground(bg) = c.unwrap() {
+                                    match bg.message {
+                                        Message::ExternalJobExpired(je) => {
+                                            info!("Job Expired: {}", je.job_id);
+                                            let mut t_p_write = t_players.write().await;
+                                            t_p_write.remove(&je.guild_id);
+                                        }
+                                        Message::WorkerShutdownAlert(shutdown_alert) => {
+                                            info!("Worker shutdown! Cancelling Players!");
+                                            let mut t_p_write = t_players.write().await;
+                                            for job_id in shutdown_alert.affected_guild_ids {
+                                                t_p_write.remove(&job_id);
+                                            }
+                                        }
+                                        _ => {}
                                     }
                                 }
-                                _ => {}
                             }
                         }
+                        Err(e) => {} //TODO: Handle
                     }
-                    Err(e) => match e {
-                        TryRecvError::Empty => {}
-                        TryRecvError::Lagged(count) => {
-                            error!("Expiration Checker - Lagged by: {}", count);
-                            let mut tick_adjustment_ratio: f32 = tick_adjustments as f32;
-                            if count >= 4 {
-                                tick_adjustment_ratio =
-                                    (tick_adjustment_ratio * 1.2).clamp(1.0, 3.0);
-                                interval = time::interval(Duration::from_millis(
-                                    (EXPIRATION_LAGGED_BY_4 / tick_adjustment_ratio) as u64,
-                                ));
-                                tick_adjustments += 1;
-                            } else if count >= 2 {
-                                tick_adjustment_ratio =
-                                    (tick_adjustment_ratio * 1.2).clamp(1.0, 3.0);
-                                interval = time::interval(Duration::from_millis(
-                                    (EXPIRATION_LAGGED_BY_2 / tick_adjustment_ratio) as u64,
-                                ));
-                                tick_adjustments += 1;
-                            } else if count >= 1 {
-                                tick_adjustment_ratio =
-                                    (tick_adjustment_ratio * 1.2).clamp(1.0, 3.0);
-                                interval = time::interval(Duration::from_millis(
-                                    (EXPIRATION_LAGGED_BY_1 / tick_adjustment_ratio) as u64,
-                                ));
-                                tick_adjustments += 1;
-                            }
-                            info!("Performed auto adjustment to prevent lag new interval: {} milliseconds",interval.period().as_millis());
-                        }
-                        _ => {
-                            error!("Failed to receive expiration check with error: {}", e);
-                        }
-                    },
-                }
-            }
+                })
+            });
+
         });
     }
 }
@@ -174,19 +144,17 @@ pub async fn init_charcoal(broker: String, config: CharcoalConfig) -> Arc<Mutex<
 
     let producer = initialize_producer(&broker, &config);
 
-    let (tx, rx) = broadcast::channel(16);
+    let (to_bg_tx, to_bg_rx) = unbounded();
+    let (from_bg_tx,from_bg_rx) = unbounded();
 
-    let global_rx = tx.subscribe();
-    let sub_tx = tx.clone();
-
-    tokio::task::spawn(async move {
-        init_processor(rx, sub_tx, consumer, producer, config).await;
+    prokio::spawn_local(async move {
+        init_processor(to_bg_rx, from_bg_tx, consumer, producer, config).await;
     });
 
     let mut c_instance = Charcoal {
         players: Arc::new(RwLock::new(HashMap::new())),
-        tx,
-        rx: global_rx,
+        to_bg_tx,
+        from_bg_rx
     };
 
     c_instance.start_global_checker(); // Start checking for expired jobs
