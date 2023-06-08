@@ -220,7 +220,12 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
     } else {
         println!("Creating new player");
         // If we have not created the player create it and then join the channel
-        let handler = PlayerObject::new(guild_id.to_string(), mx.to_bg_tx.clone()).await;
+        let handler = PlayerObject::new(
+            guild_id.to_string(),
+            mx.to_bg_tx.clone(),
+            mx.runtime.clone(),
+        )
+        .await;
         println!("Created new handler");
         // Make sure creating the PlayerObject worked
         match handler {

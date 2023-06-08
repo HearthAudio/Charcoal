@@ -1,13 +1,13 @@
-use hearth_interconnect::messages::{JobRequest, Message};
-use hearth_interconnect::worker_communication::{DWCActionType, DirectWorkerCommunication};
-use std::time::Duration;
-use crate::PlayerObject;
-use async_trait::async_trait;
-use kanal::SendError;
-use nanoid::nanoid;
 use crate::background::connector::{boilerplate_parse_ipc, BoilerplateParseIPCError};
 use crate::background::processor::IPCData;
+use crate::PlayerObject;
+use async_trait::async_trait;
+use hearth_interconnect::messages::{JobRequest, Message};
+use hearth_interconnect::worker_communication::{DWCActionType, DirectWorkerCommunication};
+use kanal::SendError;
+use nanoid::nanoid;
 use snafu::prelude::*;
+use std::time::Duration;
 
 #[derive(Debug, Snafu)]
 pub enum CreateJobError {
@@ -42,10 +42,111 @@ impl ChannelManager for PlayerObject {
         voice_channel_id: String,
         create_job: bool,
     ) -> Result<(), CreateJobError> {
+        let guild_id = self.guild_id.clone();
+
+        let tx = self.tx.clone();
+        let bg_com = self.bg_com_tx.clone();
+
+        let worker_id = self.worker_id.clone();
+        let job_id = self.job_id.clone();
+
+        if !create_job {
+            self.bg_com_tx
+                .send(IPCData::new_from_main(
+                    Message::DirectWorkerCommunication(DirectWorkerCommunication {
+                        job_id: job_id.read().await.clone().unwrap(),
+                        worker_id: worker_id.read().await.clone().unwrap(),
+                        guild_id: self.guild_id.clone(),
+                        voice_channel_id: Some(voice_channel_id.clone()),
+                        play_audio_url: None,
+                        action_type: DWCActionType::JoinChannel,
+                        request_id: Some(nanoid!()),
+                        new_volume: None,
+                        seek_position: None,
+                        loop_times: None,
+                    }),
+                    self.tx.clone(),
+                    self.guild_id.clone(),
+                ))
+                .context(FailedToSendIPCSnafu)?;
+
+            return Ok(());
+        }
+        let rx = self.rx.clone();
+        self.runtime.spawn_pinned(move || async move {
+            bg_com
+                .send(IPCData::new_from_main(
+                    Message::ExternalQueueJob(JobRequest {
+                        request_id: nanoid!(),
+                        guild_id: guild_id.clone(),
+                    }),
+                    tx.clone(),
+                    guild_id.clone(),
+                ))
+                .unwrap();
+            //
+            //
+            let mut job_id_a = job_id.write().await;
+            let mut worker_id_a = worker_id.write().await;
+            boilerplate_parse_ipc(
+                |msg| {
+                    if let IPCData::FromBackground(bg) = msg {
+                        if let Message::ExternalQueueJobResponse(q) = bg.message {
+                            *job_id_a = Some(q.job_id);
+                            *worker_id_a = Some(q.worker_id);
+                            return false;
+                        }
+                    }
+                    true
+                },
+                rx,
+                Duration::from_secs(3),
+            )
+            .await
+            .unwrap();
+            //
+            bg_com
+                .send(IPCData::new_from_main(
+                    Message::DirectWorkerCommunication(DirectWorkerCommunication {
+                        job_id: job_id_a.clone().unwrap(),
+                        worker_id: worker_id_a.clone().unwrap(),
+                        guild_id: guild_id.clone(),
+                        voice_channel_id: Some(voice_channel_id),
+                        play_audio_url: None,
+                        action_type: DWCActionType::JoinChannel,
+                        request_id: Some(nanoid!()),
+                        new_volume: None,
+                        seek_position: None,
+                        loop_times: None,
+                    }),
+                    tx.clone(),
+                    guild_id,
+                ))
+                .context(FailedToSendIPCRequestSnafu)
+                .unwrap();
+        });
         Ok(())
     }
     /// Exit voice channel
     async fn exit_channel(&self) -> Result<(), ChannelManagerError> {
+        self.bg_com_tx
+            .send(IPCData::new_from_main(
+                Message::DirectWorkerCommunication(DirectWorkerCommunication {
+                    job_id: self.job_id.read().await.clone().unwrap(),
+                    action_type: DWCActionType::LeaveChannel,
+                    play_audio_url: None,
+                    guild_id: self.guild_id.clone(),
+                    request_id: Some(nanoid!()),
+                    new_volume: None,
+                    seek_position: None,
+                    loop_times: None,
+                    worker_id: self.worker_id.read().await.clone().unwrap(),
+                    voice_channel_id: None,
+                }),
+                self.tx.clone(),
+                self.guild_id.clone(),
+            ))
+            .context(FailedToSendIPCRequestSnafu)?;
         Ok(())
     }
 }

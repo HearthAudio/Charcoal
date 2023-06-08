@@ -2,6 +2,7 @@ use crate::background::connector::send_message;
 use crate::CharcoalConfig;
 use hearth_interconnect::errors::ErrorReport;
 use hearth_interconnect::messages::{Message, Metadata};
+use kanal::{Receiver, Sender};
 use log::{debug, error};
 use rdkafka::consumer::BaseConsumer;
 use rdkafka::producer::FutureProducer;
@@ -9,7 +10,6 @@ use rdkafka::Message as KafkaMessage;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use kanal::{Receiver, Sender};
 
 #[derive(Clone, Debug)]
 pub struct FromBackgroundData {
@@ -175,6 +175,7 @@ pub async fn init_processor(
         match rx_data {
             Ok(d) => {
                 if d.is_some() {
+                    println!("RECV FM: {:?}", d.clone().unwrap());
                     if let IPCData::FromMain(m) = d.unwrap() {
                         guild_id_to_tx.insert(m.guild_id, m.response_tx);
                         send_message(&m.message, &config.kafka_topic, &mut producer).await;

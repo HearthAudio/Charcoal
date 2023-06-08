@@ -1,12 +1,12 @@
 //! Standard actions that can be called on a PlayerObject
 
-use std::time::Duration;
+use crate::background::processor::IPCData;
+use crate::PlayerObject;
 use hearth_interconnect::errors::ErrorReport;
 use hearth_interconnect::messages::Metadata;
 use log::error;
 use prokio::time::sleep;
-use crate::background::processor::IPCData;
-use crate::PlayerObject;
+use std::time::Duration;
 
 pub trait CharcoalEventHandler {
     fn handle_error(&self, report: ErrorReport);
@@ -21,7 +21,7 @@ impl PlayerObject {
     ) {
         let t_rx = self.rx.clone();
         let guild_id = self.guild_id.clone();
-        prokio::spawn_local(async move {
+        self.runtime.spawn_pinned(move || async move {
             loop {
                 let x = t_rx.try_recv();
                 match x {
@@ -41,7 +41,7 @@ impl PlayerObject {
                                 _ => {}
                             }
                         }
-                    },
+                    }
                     Err(e) => {
                         if e.to_string() != *"channel empty" {
                             error!("Failed to RECV with error: {:?}", e);
