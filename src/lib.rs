@@ -9,13 +9,13 @@ use lazy_static::lazy_static;
 use log::{error, info};
 use rdkafka::producer::FutureProducer;
 use std::collections::HashMap;
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, OnceLock, RwLock};
 use std::time::Duration;
 use futures::StreamExt;
-use prokio::pinned::RwLock;
-use prokio::pinned::mpsc::*;
 use prokio::time;
 use std::sync::Mutex;
+use kanal::{Receiver, Sender};
+
 pub mod actions;
 pub mod background;
 pub(crate) mod constants;
@@ -27,23 +27,23 @@ use rdkafka::consumer::StreamConsumer;
 
 pub(crate) static PRODUCER: OnceLock<Mutex<Option<FutureProducer>>> = OnceLock::new();
 pub(crate) static CONSUMER: OnceLock<Mutex<Option<StreamConsumer>>> = OnceLock::new();
-// pub(crate) static TX: OnceLock<Mutex<Option<UnboundedSender<String>>>> = OnceLock::new();
-// pub(crate) static RX: OnceLock<Mutex<Option<UnboundedReceiver<String>>>> = OnceLock::new();
+// pub(crate) static TX: OnceLock<Mutex<Option<Sender<String>>>> = OnceLock::new();
+// pub(crate) static RX: OnceLock<Mutex<Option<Receiver<String>>>> = OnceLock::new();
 
 /// Represents an instance in a voice channel
 pub struct PlayerObject {
     worker_id: Arc<RwLock<Option<String>>>,
     job_id: Arc<RwLock<Option<String>>>,
     guild_id: String,
-    tx: Arc<UnboundedSender<IPCData>>,
-    rx: Arc<UnboundedReceiver<IPCData>>,
-    bg_com_tx: UnboundedSender<IPCData>,
+    tx: Arc<Sender<IPCData>>,
+    rx: Arc<Receiver<IPCData>>,
+    bg_com_tx: Sender<IPCData>,
 }
 
 impl PlayerObject {
     /// Creates a new Player Object that can then be joined to channel and used to playback audio
-    pub async fn new(guild_id: String, com_tx: UnboundedSender<IPCData>) -> Result<Self, CreateJobError> {
-        let (tx, rx) = unbounded();
+    pub async fn new(guild_id: String, com_tx: Sender<IPCData>) -> Result<Self, CreateJobError> {
+        let (tx, rx) = kanal::bounded(60);
 
         let handler = PlayerObject {
             worker_id: Arc::new(RwLock::new(None)),
@@ -61,8 +61,8 @@ impl PlayerObject {
 /// Stores Charcoal instance
 pub struct Charcoal {
     pub players: Arc<RwLock<HashMap<String, PlayerObject>>>, // Guild ID to PlayerObject
-    pub to_bg_tx: UnboundedSender<IPCData>,
-    from_bg_rx: UnboundedReceiver<IPCData>
+    pub to_bg_tx: Sender<IPCData>,
+    from_bg_rx: Receiver<IPCData>
 }
 
 impl Charcoal {
@@ -74,7 +74,7 @@ impl Charcoal {
             let mut interval = time::interval(Duration::from_secs(1));
             let _ = interval.map( |x| {
                 futures::executor::block_on(async move {
-                    let catch = self.from_bg_rx.try_next();
+                    let catch = self.from_bg_rx.try_recv();
                     match catch {
                         Ok(c) => {
                             if c.is_some() {
@@ -82,12 +82,12 @@ impl Charcoal {
                                     match bg.message {
                                         Message::ExternalJobExpired(je) => {
                                             info!("Job Expired: {}", je.job_id);
-                                            let mut t_p_write = t_players.write().await;
+                                            let mut t_p_write = t_players.write().unwrap()r;
                                             t_p_write.remove(&je.guild_id);
                                         }
                                         Message::WorkerShutdownAlert(shutdown_alert) => {
                                             info!("Worker shutdown! Cancelling Players!");
-                                            let mut t_p_write = t_players.write().await;
+                                            let mut t_p_write = t_players.write().unwrap();
                                             for job_id in shutdown_alert.affected_guild_ids {
                                                 t_p_write.remove(&job_id);
                                             }
@@ -144,8 +144,8 @@ pub async fn init_charcoal(broker: String, config: CharcoalConfig) -> Arc<Mutex<
 
     let producer = initialize_producer(&broker, &config);
 
-    let (to_bg_tx, to_bg_rx) = unbounded();
-    let (from_bg_tx,from_bg_rx) = unbounded();
+    let (to_bg_tx, to_bg_rx) = kanal::unbounded();
+    let (from_bg_tx,from_bg_rx) = kanal::unbounded();
 
     prokio::spawn_local(async move {
         init_processor(to_bg_rx, from_bg_tx, consumer, producer, config).await;

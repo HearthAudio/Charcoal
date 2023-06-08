@@ -3,24 +3,24 @@ use hearth_interconnect::worker_communication::{DWCActionType, DirectWorkerCommu
 use std::time::Duration;
 use crate::PlayerObject;
 use async_trait::async_trait;
+use kanal::SendError;
 use nanoid::nanoid;
 use crate::background::connector::{boilerplate_parse_ipc, BoilerplateParseIPCError};
 use crate::background::processor::IPCData;
 use snafu::prelude::*;
-use tokio::sync::broadcast::error::SendError;
 
 #[derive(Debug, Snafu)]
 pub enum CreateJobError {
     #[snafu(display("Did not receive job creation confirmation within time-frame"))]
     TimedOutWaitingForJobCreationConfirmation { source: BoilerplateParseIPCError },
     #[snafu(display("Failed to send internal IPC job creation request"))]
-    FailedToSendIPC { source: SendError<IPCData> },
+    FailedToSendIPC { source: SendError },
 }
 
 #[derive(Debug, Snafu)]
 pub enum ChannelManagerError {
     #[snafu(display("Failed to send IPC request to Background thread"))]
-    FailedToSendIPCRequest { source: SendError<IPCData> },
+    FailedToSendIPCRequest { source: SendError },
 }
 
 /// Provides basic functionality to create a job on the hearth server, join a channel, and exit a channel
@@ -54,8 +54,8 @@ impl ChannelManager for PlayerObject {
             self.bg_com_tx
                 .send(IPCData::new_from_main(
                     Message::DirectWorkerCommunication(DirectWorkerCommunication {
-                        job_id: job_id.read().await.clone().unwrap(),
-                        worker_id: worker_id.read().await.clone().unwrap(),
+                        job_id: job_id.read().unwrap().clone().unwrap(),
+                        worker_id: worker_id.read().unwrap().clone().unwrap(),
                         guild_id: self.guild_id.clone(),
                         voice_channel_id: Some(voice_channel_id.clone()),
                         play_audio_url: None,
@@ -73,7 +73,7 @@ impl ChannelManager for PlayerObject {
             return Ok(());
         }
 
-        tokio::spawn(async move {
+        prokio::spawn_local(async move {
             bg_com
                 .send(IPCData::new_from_main(
                     Message::ExternalQueueJob(JobRequest {
@@ -86,8 +86,8 @@ impl ChannelManager for PlayerObject {
                 .unwrap();
             //
             //
-            let mut job_id_a = job_id.write().await;
-            let mut worker_id_a = worker_id.write().await;
+            let mut job_id_a = job_id.write().unwrap();
+            let mut worker_id_a = worker_id.write().unwrap();
             boilerplate_parse_ipc(
                 |msg| {
                     if let IPCData::FromBackground(bg) = msg {
@@ -99,7 +99,7 @@ impl ChannelManager for PlayerObject {
                     }
                     true
                 },
-                tx.subscribe(),
+                self.rx.clone(),
                 Duration::from_secs(3),
             )
             .await
@@ -133,7 +133,7 @@ impl ChannelManager for PlayerObject {
         self.bg_com_tx
             .send(IPCData::new_from_main(
                 Message::DirectWorkerCommunication(DirectWorkerCommunication {
-                    job_id: self.job_id.read().await.clone().unwrap(),
+                    job_id: self.job_id.read().unwrap().clone().unwrap(),
                     action_type: DWCActionType::LeaveChannel,
                     play_audio_url: None,
                     guild_id: self.guild_id.clone(),
@@ -141,7 +141,7 @@ impl ChannelManager for PlayerObject {
                     new_volume: None,
                     seek_position: None,
                     loop_times: None,
-                    worker_id: self.worker_id.read().await.clone().unwrap(),
+                    worker_id: self.worker_id.read().unwrap().clone().unwrap(),
                     voice_channel_id: None,
                 }),
                 self.tx.clone(),

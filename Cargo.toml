@@ -25,3 +25,4 @@ async_fn_traits = "0.1.1"
 hearth-interconnect = "0.1.0"
 rdkafka = { version = "0.31", features = ["cmake-build","ssl"] }
 prokio = "0.1.0"
+kanal = "0.1.0-pre8"

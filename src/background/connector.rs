@@ -10,8 +10,10 @@ use rdkafka::producer::{FutureProducer, FutureRecord};
 use rdkafka::ClientConfig;
 use snafu::prelude::*;
 use std::ops::Sub;
+use std::sync::Arc;
 use std::time::Duration;
 use futures::channel::mpsc::UnboundedReceiver;
+use kanal::Receiver;
 use prokio::pinned::mpsc::TryRecvError;
 use prokio::time::sleep;
 
@@ -80,7 +82,7 @@ pub enum BoilerplateParseIPCError {
 
 pub async fn boilerplate_parse_ipc<T>(
     mut ipc_parser: T,
-    mut rx: UnboundedReceiver<IPCData>,
+    mut rx: Arc<Receiver<IPCData>>,
     timeout: Duration,
 ) -> Result<(), BoilerplateParseIPCError>
 where
@@ -89,7 +91,7 @@ where
     let start_time = get_unix_timestamp();
     let mut run = true;
     while run {
-        let rxm = rx.try_next();
+        let rxm = rx.try_recv();
         match rxm {
             Ok(m) => {
                 if m.is_some() {
