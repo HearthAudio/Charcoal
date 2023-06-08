@@ -3,7 +3,6 @@
 
 use crate::actions::channel_manager::CreateJobError;
 use crate::background::processor::{init_processor, IPCData};
-use crate::constants::{EXPIRATION_LAGGED_BY_1, EXPIRATION_LAGGED_BY_2, EXPIRATION_LAGGED_BY_4};
 use hearth_interconnect::messages::Message;
 use lazy_static::lazy_static;
 use log::{error, info};
@@ -15,6 +14,7 @@ use futures::StreamExt;
 use prokio::time;
 use std::sync::Mutex;
 use kanal::{Receiver, Sender};
+use prokio::time::sleep;
 
 pub mod actions;
 pub mod background;
@@ -24,11 +24,6 @@ pub mod serenity;
 
 use crate::background::connector::{initialize_client, initialize_producer};
 use rdkafka::consumer::StreamConsumer;
-
-pub(crate) static PRODUCER: OnceLock<Mutex<Option<FutureProducer>>> = OnceLock::new();
-pub(crate) static CONSUMER: OnceLock<Mutex<Option<StreamConsumer>>> = OnceLock::new();
-// pub(crate) static TX: OnceLock<Mutex<Option<Sender<String>>>> = OnceLock::new();
-// pub(crate) static RX: OnceLock<Mutex<Option<Receiver<String>>>> = OnceLock::new();
 
 /// Represents an instance in a voice channel
 pub struct PlayerObject {
@@ -69,38 +64,36 @@ impl Charcoal {
     fn start_global_checker(&mut self) {
         info!("Started global data checker!");
         let t_players = self.players.clone();
-        let mut tick_adjustments = 0;
+        let from_bg_rx_t = self.from_bg_rx.clone();
         prokio::spawn_local(async move {
-            let mut interval = time::interval(Duration::from_secs(1));
-            let _ = interval.map( |x| {
-                futures::executor::block_on(async move {
-                    let catch = self.from_bg_rx.try_recv();
-                    match catch {
-                        Ok(c) => {
-                            if c.is_some() {
-                                if let IPCData::FromBackground(bg) = c.unwrap() {
-                                    match bg.message {
-                                        Message::ExternalJobExpired(je) => {
-                                            info!("Job Expired: {}", je.job_id);
-                                            let mut t_p_write = t_players.write().unwrap()r;
-                                            t_p_write.remove(&je.guild_id);
-                                        }
-                                        Message::WorkerShutdownAlert(shutdown_alert) => {
-                                            info!("Worker shutdown! Cancelling Players!");
-                                            let mut t_p_write = t_players.write().unwrap();
-                                            for job_id in shutdown_alert.affected_guild_ids {
-                                                t_p_write.remove(&job_id);
-                                            }
-                                        }
-                                        _ => {}
+            loop {
+                sleep(Duration::from_millis(250)).await;
+                let catch = from_bg_rx_t.try_recv();
+                match catch {
+                    Ok(c) => {
+                        if c.is_some() {
+                            if let IPCData::FromBackground(bg) = c.unwrap() {
+                                match bg.message {
+                                    Message::ExternalJobExpired(je) => {
+                                        info!("Job Expired: {}", je.job_id);
+                                        let mut t_p_write = t_players.write().unwrap();
+                                        t_p_write.remove(&je.guild_id);
                                     }
+                                    Message::WorkerShutdownAlert(shutdown_alert) => {
+                                        info!("Worker shutdown! Cancelling Players!");
+                                        let mut t_p_write = t_players.write().unwrap();
+                                        for job_id in shutdown_alert.affected_guild_ids {
+                                            t_p_write.remove(&job_id);
+                                        }
+                                    }
+                                    _ => {}
                                 }
                             }
                         }
-                        Err(e) => {} //TODO: Handle
                     }
-                })
-            });
+                    Err(e) => {} //TODO: Handle
+                }
+            }
 
         });
     }

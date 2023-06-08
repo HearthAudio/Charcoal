@@ -72,7 +72,7 @@ impl ChannelManager for PlayerObject {
 
             return Ok(());
         }
-
+        let rx = self.rx.clone();
         prokio::spawn_local(async move {
             bg_com
                 .send(IPCData::new_from_main(
@@ -99,7 +99,7 @@ impl ChannelManager for PlayerObject {
                     }
                     true
                 },
-                self.rx.clone(),
+                rx,
                 Duration::from_secs(3),
             )
             .await
