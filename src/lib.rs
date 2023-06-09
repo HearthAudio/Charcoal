@@ -25,7 +25,7 @@ pub mod serenity;
 use crate::background::connector::{initialize_client, initialize_producer};
 
 /// Represents an instance in a voice channel
-pub struct PlayerObject {
+pub struct PlayerObjectData {
     worker_id: Arc<RwLock<Option<String>>>,
     job_id: Arc<RwLock<Option<String>>>,
     guild_id: String,
@@ -35,7 +35,7 @@ pub struct PlayerObject {
     runtime: Arc<Runtime>,
 }
 
-impl PlayerObject {
+impl PlayerObjectData {
     /// Creates a new Player Object that can then be joined to channel and used to playback audio
     pub async fn new(
         guild_id: String,
@@ -44,7 +44,7 @@ impl PlayerObject {
     ) -> Result<Self, CreateJobError> {
         let (tx, rx) = kanal::bounded(60);
 
-        let handler = PlayerObject {
+        let handler = PlayerObjectData {
             worker_id: Arc::new(RwLock::new(None)),
             job_id: Arc::new(RwLock::new(None)),
             guild_id,
@@ -60,7 +60,7 @@ impl PlayerObject {
 
 /// Stores Charcoal instance
 pub struct Charcoal {
-    pub players: Arc<RwLock<HashMap<String, PlayerObject>>>, // Guild ID to PlayerObject
+    pub players: Arc<RwLock<HashMap<String, PlayerObjectData>>>, // Guild ID to PlayerObject
     pub to_bg_tx: Sender<IPCData>,
     from_bg_rx: Receiver<IPCData>,
     pub runtime: Arc<Runtime>,
@@ -68,7 +68,7 @@ pub struct Charcoal {
 
 fn start_global_checker(
     runtime: &Arc<Runtime>,
-    players: Arc<RwLock<HashMap<String, PlayerObject>>>,
+    players: Arc<RwLock<HashMap<String, PlayerObjectData>>>,
     from_bg_rx: Receiver<IPCData>,
 ) {
     info!("Started global data checker!");

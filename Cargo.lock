@@ -160,6 +160,7 @@ dependencies = [
  "serenity",
  "snafu",
  "tokio",
+ "wasm-bindgen",
 ]
 
 [[package]]

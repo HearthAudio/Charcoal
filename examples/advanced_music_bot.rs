@@ -13,7 +13,7 @@ use charcoal_client::actions::channel_manager::ChannelManager;
 use charcoal_client::actions::player::Player;
 use charcoal_client::actions::track_manager::TrackManager;
 use charcoal_client::{
-    get_handler_from_serenity, get_handler_from_serenity_mutable, CharcoalConfig, PlayerObject,
+    get_handler_from_serenity, get_handler_from_serenity_mutable, CharcoalConfig, PlayerObjectData,
     SASLConfig,
 };
 
@@ -126,7 +126,7 @@ async fn main() {
 #[only_in(guilds)]
 async fn pause(ctx: &Context, msg: &Message) -> CommandResult {
     // Get the PlayerObject using a helper macro
-    let mut handler: Option<&PlayerObject> = None;
+    let mut handler: Option<&PlayerObjectData> = None;
     get_handler_from_serenity!(ctx, msg, handler);
 
     match handler {
@@ -145,7 +145,7 @@ async fn pause(ctx: &Context, msg: &Message) -> CommandResult {
 #[only_in(guilds)]
 async fn resume(ctx: &Context, msg: &Message) -> CommandResult {
     // Get the PlayerObject using a helper macro
-    let mut handler: Option<&PlayerObject> = None;
+    let mut handler: Option<&PlayerObjectData> = None;
     get_handler_from_serenity!(ctx, msg, handler);
 
     // If you don't want to use the macro you can also get the PlayerObject like this
@@ -220,7 +220,7 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
     } else {
         println!("Creating new player");
         // If we have not created the player create it and then join the channel
-        let handler = PlayerObject::new(
+        let handler = PlayerObjectData::new(
             guild_id.to_string(),
             mx.to_bg_tx.clone(),
             mx.runtime.clone(),
@@ -267,7 +267,7 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
 #[only_in(guilds)]
 async fn metadata(ctx: &Context, msg: &Message) -> CommandResult {
     // Get the PlayerObject using a helper macro
-    let mut handler: Option<&mut PlayerObject> = None;
+    let mut handler: Option<&mut PlayerObjectData> = None;
     // This get's a mutable PlayerObject instead of a constant one
     // Be careful where you use this as getting the playerobject as mutable locks the internal RwLock Mutex
     get_handler_from_serenity_mutable!(ctx, msg, handler);
@@ -288,7 +288,7 @@ async fn metadata(ctx: &Context, msg: &Message) -> CommandResult {
 #[only_in(guilds)]
 async fn loopforever(ctx: &Context, msg: &Message) -> CommandResult {
     // Get the PlayerObject using a helper macro
-    let mut handler: Option<&PlayerObject> = None;
+    let mut handler: Option<&PlayerObjectData> = None;
     get_handler_from_serenity!(ctx, msg, handler);
 
     match handler {
@@ -308,7 +308,7 @@ async fn loopforever(ctx: &Context, msg: &Message) -> CommandResult {
 #[only_in(guilds)]
 async fn leave(ctx: &Context, msg: &Message) -> CommandResult {
     // Get the PlayerObject using a helper macro
-    let mut handler: Option<&PlayerObject> = None;
+    let mut handler: Option<&PlayerObjectData> = None;
     get_handler_from_serenity!(ctx, msg, handler);
 
     match handler {
@@ -357,7 +357,7 @@ async fn play(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     }
 
     // Get the PlayerObject using a helper macro
-    let mut handler: Option<&mut PlayerObject> = None;
+    let mut handler: Option<&mut PlayerObjectData> = None;
     get_handler_from_serenity_mutable!(ctx, msg, handler);
 
     match handler {
@@ -400,7 +400,7 @@ async fn youtube(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
     }
 
     // Get the PlayerObject using a helper macro
-    let mut handler: Option<&mut PlayerObject> = None;
+    let mut handler: Option<&mut PlayerObjectData> = None;
     get_handler_from_serenity_mutable!(ctx, msg, handler);
 
     match handler {
@@ -440,7 +440,7 @@ async fn volume(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     // So any values above 1 may clip
     if volume >= 0.0 && volume <= 1.0 {
         // Get the PlayerObject using a helper macro
-        let mut handler: Option<&PlayerObject> = None;
+        let mut handler: Option<&PlayerObjectData> = None;
         get_handler_from_serenity!(ctx, msg, handler);
 
         match handler {
@@ -467,7 +467,7 @@ async fn volume(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 #[only_in(guilds)]
 async fn stoploop(ctx: &Context, msg: &Message) -> CommandResult {
     // Get the PlayerObject using a helper macro
-    let mut handler: Option<&PlayerObject> = None;
+    let mut handler: Option<&PlayerObjectData> = None;
     get_handler_from_serenity!(ctx, msg, handler);
 
     match handler {
@@ -500,7 +500,7 @@ async fn looptimes(ctx: &Context, msg: &Message, mut args: Args) -> CommandResul
     };
 
     // Get the PlayerObject using a helper macro
-    let mut handler: Option<&PlayerObject> = None;
+    let mut handler: Option<&PlayerObjectData> = None;
     get_handler_from_serenity!(ctx, msg, handler);
 
     match handler {
@@ -537,7 +537,7 @@ async fn position(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
     };
 
     // Get the PlayerObject using a helper macro
-    let mut handler: Option<&PlayerObject> = None;
+    let mut handler: Option<&PlayerObjectData> = None;
     get_handler_from_serenity!(ctx, msg, handler);
 
     match handler {

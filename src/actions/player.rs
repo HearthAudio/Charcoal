@@ -4,7 +4,7 @@ use hearth_interconnect::worker_communication::{DWCActionType, DirectWorkerCommu
 use kanal::SendError;
 
 use crate::background::processor::IPCData;
-use crate::PlayerObject;
+use crate::PlayerObjectData;
 use nanoid::nanoid;
 use snafu::prelude::*;
 
@@ -14,59 +14,52 @@ pub enum PlayerActionError {
     FailedToSendIPCRequest { source: SendError },
 }
 
-#[async_trait]
-/// Allows you to start playback using an HttpRequest or from a Youtube URL
-pub trait Player {
-    /// Play from an HTTP URL
-    async fn play_from_http(&mut self, url: String) -> Result<(), PlayerActionError>;
-    /// Play from a Youtube URL
-    async fn play_from_youtube(&mut self, url: String) -> Result<(), PlayerActionError>;
+async fn play_from_http(instance: &PlayerObjectData, url: String) -> Result<(), PlayerActionError> {
+    instance
+        .bg_com_tx
+        .send(IPCData::new_from_main(
+            Message::DirectWorkerCommunication(DirectWorkerCommunication {
+                job_id: instance.job_id.read().await.clone().unwrap(),
+                action_type: DWCActionType::PlayDirectLink,
+                play_audio_url: Some(url),
+                guild_id: instance.guild_id.clone(),
+                request_id: Some(nanoid!()),
+                new_volume: None,
+                seek_position: None,
+                loop_times: None,
+                worker_id: instance.worker_id.clone().read().await.clone().unwrap(),
+                voice_channel_id: None,
+            }),
+            instance.tx.clone(),
+            instance.guild_id.clone(),
+        ))
+        .context(FailedToSendIPCRequestSnafu)?;
+
+    Ok(())
 }
+async fn play_from_youtube(
+    instance: &PlayerObjectData,
+    url: String,
+) -> Result<(), PlayerActionError> {
+    instance
+        .bg_com_tx
+        .send(IPCData::new_from_main(
+            Message::DirectWorkerCommunication(DirectWorkerCommunication {
+                job_id: instance.job_id.clone().read().await.clone().unwrap(),
+                action_type: DWCActionType::PlayFromYoutube,
+                play_audio_url: Some(url),
+                guild_id: instance.guild_id.clone(),
+                request_id: Some(nanoid!()),
+                new_volume: None,
+                seek_position: None,
+                loop_times: None,
+                worker_id: instance.worker_id.clone().read().await.clone().unwrap(),
+                voice_channel_id: None,
+            }),
+            instance.tx.clone(),
+            instance.guild_id.clone(),
+        ))
+        .context(FailedToSendIPCRequestSnafu)?;
 
-#[async_trait]
-impl Player for PlayerObject {
-    async fn play_from_http(&mut self, url: String) -> Result<(), PlayerActionError> {
-        self.bg_com_tx
-            .send(IPCData::new_from_main(
-                Message::DirectWorkerCommunication(DirectWorkerCommunication {
-                    job_id: self.job_id.read().await.clone().unwrap(),
-                    action_type: DWCActionType::PlayDirectLink,
-                    play_audio_url: Some(url),
-                    guild_id: self.guild_id.clone(),
-                    request_id: Some(nanoid!()),
-                    new_volume: None,
-                    seek_position: None,
-                    loop_times: None,
-                    worker_id: self.worker_id.clone().read().await.clone().unwrap(),
-                    voice_channel_id: None,
-                }),
-                self.tx.clone(),
-                self.guild_id.clone(),
-            ))
-            .context(FailedToSendIPCRequestSnafu)?;
-
-        Ok(())
-    }
-    async fn play_from_youtube(&mut self, url: String) -> Result<(), PlayerActionError> {
-        self.bg_com_tx
-            .send(IPCData::new_from_main(
-                Message::DirectWorkerCommunication(DirectWorkerCommunication {
-                    job_id: self.job_id.clone().read().await.clone().unwrap(),
-                    action_type: DWCActionType::PlayFromYoutube,
-                    play_audio_url: Some(url),
-                    guild_id: self.guild_id.clone(),
-                    request_id: Some(nanoid!()),
-                    new_volume: None,
-                    seek_position: None,
-                    loop_times: None,
-                    worker_id: self.worker_id.clone().read().await.clone().unwrap(),
-                    voice_channel_id: None,
-                }),
-                self.tx.clone(),
-                self.guild_id.clone(),
-            ))
-            .context(FailedToSendIPCRequestSnafu)?;
-
-        Ok(())
-    }
+    Ok(())
 }
