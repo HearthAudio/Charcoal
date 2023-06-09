@@ -51,27 +51,31 @@ impl ChannelManager for PlayerObject {
         let job_id = self.job_id.clone();
 
         if !create_job {
-            self.bg_com_tx
-                .send(IPCData::new_from_main(
-                    Message::DirectWorkerCommunication(DirectWorkerCommunication {
-                        job_id: job_id.read().await.clone().unwrap(),
-                        worker_id: worker_id.read().await.clone().unwrap(),
-                        guild_id: self.guild_id.clone(),
-                        voice_channel_id: Some(voice_channel_id.clone()),
-                        play_audio_url: None,
-                        action_type: DWCActionType::JoinChannel,
-                        request_id: Some(nanoid!()),
-                        new_volume: None,
-                        seek_position: None,
-                        loop_times: None,
-                    }),
-                    self.tx.clone(),
-                    self.guild_id.clone(),
-                ))
-                .context(FailedToSendIPCSnafu)?;
+            let job_id = job_id.read().await.clone();
+            let worker_id = worker_id.read().await.clone();
 
-            return Ok(());
+            if job_id.is_some() && worker_id.is_some() {
+                self.bg_com_tx
+                    .send(IPCData::new_from_main(
+                        Message::DirectWorkerCommunication(DirectWorkerCommunication {
+                            job_id: job_id.unwrap(),
+                            worker_id: worker_id.unwrap(),
+                            guild_id: self.guild_id.clone(),
+                            voice_channel_id: Some(voice_channel_id.clone()),
+                            play_audio_url: None,
+                            action_type: DWCActionType::JoinChannel,
+                            request_id: Some(nanoid!()),
+                            new_volume: None,
+                            seek_position: None,
+                            loop_times: None,
+                        }),
+                        self.tx.clone(),
+                        self.guild_id.clone(),
+                    ))
+                    .context(FailedToSendIPCSnafu)?;
+            }
         }
+        // If the above fails fallback to trying to create a new job
         let rx = self.rx.clone();
         self.runtime.spawn_pinned(move || async move {
             bg_com
