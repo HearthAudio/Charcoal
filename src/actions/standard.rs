@@ -4,6 +4,7 @@ use crate::background::processor::IPCData;
 use crate::PlayerObject;
 use hearth_interconnect::errors::ErrorReport;
 use hearth_interconnect::messages::Metadata;
+use kanal::ReceiveError;
 use log::error;
 use prokio::time::sleep;
 use std::time::Duration;
@@ -42,11 +43,14 @@ impl PlayerObject {
                             }
                         }
                     }
-                    Err(e) => {
-                        if e.to_string() != *"channel empty" {
-                            error!("Failed to RECV with error: {:?}", e);
+                    Err(e) => match e {
+                        ReceiveError::SendClosed => {
+                            break; // If the sender is closed the PlayerObject probably got removed and we should shut down this task
                         }
-                    }
+                        _ => {
+                            error!("Register Event Handler Task failed with error: {}", e);
+                        }
+                    },
                 }
                 sleep(Duration::from_millis(250)).await; // Don't max out the CPU
             }

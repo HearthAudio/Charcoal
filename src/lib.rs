@@ -79,6 +79,7 @@ fn start_global_checker(
             match catch {
                 Ok(c) => {
                     if c.is_some() {
+                        println!("GDCR: {:?}", c.clone().unwrap());
                         if let IPCData::FromBackground(bg) = c.unwrap() {
                             match bg.message {
                                 Message::ExternalJobExpired(je) => {
