@@ -93,7 +93,7 @@ pub async fn join_channel(
                 true
             },
             rx,
-            Duration::from_secs(3),
+            Duration::from_secs(10),
         )
         .await
         .unwrap();
