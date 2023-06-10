@@ -17,8 +17,8 @@ pub enum TrackActionError {
     TimedOutWaitingForMetadataResult { source: BoilerplateParseIPCError },
 }
 
-async fn set_playback_volume(
-    instance: &mut PlayerObjectData,
+pub async fn set_playback_volume(
+    instance: &PlayerObjectData,
     playback_volume: f32,
 ) -> Result<(), TrackActionError> {
     instance
@@ -42,7 +42,7 @@ async fn set_playback_volume(
         .context(FailedToSendIPCRequestSnafu)?;
     Ok(())
 }
-async fn force_stop_loop(instance: &mut PlayerObjectData) -> Result<(), TrackActionError> {
+pub async fn force_stop_loop(instance: &PlayerObjectData) -> Result<(), TrackActionError> {
     instance
         .bg_com_tx
         .send(IPCData::new_from_main(
@@ -65,7 +65,7 @@ async fn force_stop_loop(instance: &mut PlayerObjectData) -> Result<(), TrackAct
 
     Ok(())
 }
-async fn loop_indefinitely(instance: &mut PlayerObjectData) -> Result<(), TrackActionError> {
+pub async fn loop_indefinitely(instance: &PlayerObjectData) -> Result<(), TrackActionError> {
     instance
         .bg_com_tx
         .send(IPCData::new_from_main(
@@ -89,8 +89,8 @@ async fn loop_indefinitely(instance: &mut PlayerObjectData) -> Result<(), TrackA
     Ok(())
 }
 
-async fn loop_x_times(
-    instance: &mut PlayerObjectData,
+pub async fn loop_x_times(
+    instance: &PlayerObjectData,
     times: usize,
 ) -> Result<(), TrackActionError> {
     instance
@@ -115,8 +115,8 @@ async fn loop_x_times(
 
     Ok(())
 }
-async fn seek_to_position(
-    instance: &mut PlayerObjectData,
+pub async fn seek_to_position(
+    instance: &PlayerObjectData,
     position: Duration,
 ) -> Result<(), TrackActionError> {
     instance
@@ -141,7 +141,7 @@ async fn seek_to_position(
 
     Ok(())
 }
-async fn resume_playback(instance: &mut PlayerObjectData) -> Result<(), TrackActionError> {
+pub async fn resume_playback(instance: &PlayerObjectData) -> Result<(), TrackActionError> {
     instance
         .bg_com_tx
         .send(IPCData::new_from_main(
@@ -164,7 +164,7 @@ async fn resume_playback(instance: &mut PlayerObjectData) -> Result<(), TrackAct
 
     Ok(())
 }
-async fn pause_playback(instance: &mut PlayerObjectData) -> Result<(), TrackActionError> {
+pub async fn pause_playback(instance: &PlayerObjectData) -> Result<(), TrackActionError> {
     instance
         .bg_com_tx
         .send(IPCData::new_from_main(
@@ -187,7 +187,7 @@ async fn pause_playback(instance: &mut PlayerObjectData) -> Result<(), TrackActi
 
     Ok(())
 }
-async fn get_metadata(instance: &mut PlayerObjectData) -> Result<(), TrackActionError> {
+pub async fn get_metadata(instance: &PlayerObjectData) -> Result<(), TrackActionError> {
     instance
         .bg_com_tx
         .send(IPCData::new_from_main(

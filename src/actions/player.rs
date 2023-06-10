@@ -14,7 +14,10 @@ pub enum PlayerActionError {
     FailedToSendIPCRequest { source: SendError },
 }
 
-async fn play_from_http(instance: &PlayerObjectData, url: String) -> Result<(), PlayerActionError> {
+pub async fn play_from_http(
+    instance: &PlayerObjectData,
+    url: String,
+) -> Result<(), PlayerActionError> {
     instance
         .bg_com_tx
         .send(IPCData::new_from_main(
@@ -37,7 +40,7 @@ async fn play_from_http(instance: &PlayerObjectData, url: String) -> Result<(), 
 
     Ok(())
 }
-async fn play_from_youtube(
+pub async fn play_from_youtube(
     instance: &PlayerObjectData,
     url: String,
 ) -> Result<(), PlayerActionError> {

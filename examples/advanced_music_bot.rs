@@ -6,12 +6,20 @@ use log::error;
 use std::time::Duration;
 
 // Import the `Context` to handle commands.
-use charcoal_client::serenity::{CharcoalKey, SerenityInit};
+use charcoal_client::{
+    actions::{
+        channel_manager::{exit_channel, join_channel},
+        player::{play_from_http, play_from_youtube},
+        standard::register_event_handler,
+        track_manager::{
+            force_stop_loop, get_metadata, loop_indefinitely, loop_x_times, pause_playback,
+            resume_playback, seek_to_position, set_playback_volume,
+        },
+    },
+    serenity::{CharcoalKey, SerenityInit},
+};
 use serenity::client::Context;
 
-use charcoal_client::actions::channel_manager::ChannelManager;
-use charcoal_client::actions::player::Player;
-use charcoal_client::actions::track_manager::TrackManager;
 use charcoal_client::{
     get_handler_from_serenity, get_handler_from_serenity_mutable, CharcoalConfig, PlayerObjectData,
     SASLConfig,
@@ -131,7 +139,7 @@ async fn pause(ctx: &Context, msg: &Message) -> CommandResult {
 
     match handler {
         Some(handler) => {
-            handler.pause_playback().await.unwrap();
+            pause_playback(handler).await.unwrap();
         }
         None => {
             error!("Failed to get manager!");
@@ -165,7 +173,7 @@ async fn resume(ctx: &Context, msg: &Message) -> CommandResult {
 
     match handler {
         Some(handler) => {
-            handler.resume_playback().await.unwrap();
+            resume_playback(handler).await.unwrap();
         }
         None => {
             error!("Failed to get manager!");
@@ -213,8 +221,7 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
             "This should never happen because we checked the key exists in the if check above",
         );
         // Join the channel
-        handler
-            .join_channel(connect_to.to_string(), false)
+        join_channel(handler, connect_to.to_string(), false)
             .await
             .unwrap(); // We use false here so Charcoal does not create a pre-existing job
     } else {
@@ -231,11 +238,10 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
         match handler {
             Ok(mut handler) => {
                 // Register an error callback so errors from the hearth server can be reported back to us
-                handler.register_event_handler(CustomEventHandler {}).await;
+                register_event_handler(&handler, CustomEventHandler {}).await;
                 // Join the channel
                 println!("Registered error callback");
-                handler
-                    .join_channel(connect_to.to_string(), true)
+                join_channel(&handler, connect_to.to_string(), true)
                     .await
                     .unwrap(); // We use true here to tell Charcoal to create the Job
                 println!("Joined channel");
@@ -274,7 +280,7 @@ async fn metadata(ctx: &Context, msg: &Message) -> CommandResult {
 
     match handler {
         Some(handler) => {
-            handler.get_metadata().await.unwrap();
+            get_metadata(handler).await.unwrap();
         }
         None => {
             error!("Failed to get manager!");
@@ -293,7 +299,7 @@ async fn loopforever(ctx: &Context, msg: &Message) -> CommandResult {
 
     match handler {
         Some(handler) => {
-            let _meta = handler.loop_indefinitely().await;
+            let _meta = loop_indefinitely(handler).await;
             check_msg(msg.channel_id.say(&ctx.http, "Looping forever!").await);
         }
         None => {
@@ -313,7 +319,7 @@ async fn leave(ctx: &Context, msg: &Message) -> CommandResult {
 
     match handler {
         Some(handler) => {
-            handler.exit_channel().await;
+            exit_channel(handler).await;
         }
         None => {
             error!("Failed to get manager!");
@@ -362,7 +368,7 @@ async fn play(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 
     match handler {
         Some(handler) => {
-            handler.play_from_http(url).await.unwrap();
+            play_from_http(handler, url).await.unwrap();
             check_msg(msg.channel_id.say(&ctx.http, "Playing song").await);
         }
         None => {
@@ -405,7 +411,7 @@ async fn youtube(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 
     match handler {
         Some(handler) => {
-            handler.play_from_youtube(url).await.unwrap();
+            play_from_youtube(handler, url).await.unwrap();
             check_msg(
                 msg.channel_id
                     .say(&ctx.http, "Playing song from YouTube")
@@ -445,7 +451,7 @@ async fn volume(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 
         match handler {
             Some(handler) => {
-                handler.set_playback_volume(volume).await.unwrap();
+                set_playback_volume(handler, volume).await.unwrap();
                 check_msg(msg.channel_id.say(&ctx.http, "Set volume").await);
             }
             None => {
@@ -472,7 +478,7 @@ async fn stoploop(ctx: &Context, msg: &Message) -> CommandResult {
 
     match handler {
         Some(handler) => {
-            handler.force_stop_loop().await.unwrap();
+            force_stop_loop(handler).await.unwrap();
             check_msg(msg.channel_id.say(&ctx.http, "Canceled Loop").await);
         }
         None => {
@@ -505,7 +511,7 @@ async fn looptimes(ctx: &Context, msg: &Message, mut args: Args) -> CommandResul
 
     match handler {
         Some(handler) => {
-            handler.loop_x_times(times).await.unwrap();
+            loop_x_times(handler, times).await.unwrap();
             check_msg(
                 msg.channel_id
                     .say(&ctx.http, format!("Looping {} time(s)", times))
@@ -542,8 +548,7 @@ async fn position(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
 
     match handler {
         Some(handler) => {
-            handler
-                .seek_to_position(Duration::from_secs(position))
+            seek_to_position(handler, Duration::from_secs(position))
                 .await
                 .unwrap();
             check_msg(msg.channel_id.say(&ctx.http, "Seeking...").await);

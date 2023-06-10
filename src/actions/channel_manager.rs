@@ -25,7 +25,7 @@ pub enum ChannelManagerError {
 }
 
 /// Create job on Hearth server for this PlayerObject
-async fn join_channel(
+pub async fn join_channel(
     instance: &PlayerObjectData,
     voice_channel_id: String,
     create_job: bool,
@@ -121,7 +121,7 @@ async fn join_channel(
     Ok(())
 }
 /// Exit voice channel
-async fn exit_channel(instance: &PlayerObjectData) -> Result<(), ChannelManagerError> {
+pub async fn exit_channel(instance: &PlayerObjectData) -> Result<(), ChannelManagerError> {
     instance
         .bg_com_tx
         .send(IPCData::new_from_main(
