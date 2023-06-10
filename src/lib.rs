@@ -10,12 +10,12 @@ use log::info;
 use kanal::{Receiver, Sender};
 use prokio::time::sleep;
 use prokio::{Runtime, RuntimeBuilder};
+use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
-
 pub mod actions;
 pub mod background;
 pub(crate) mod constants;
@@ -25,6 +25,7 @@ pub mod serenity;
 use crate::background::connector::{initialize_client, initialize_producer};
 
 /// Represents an instance in a voice channel
+#[derive(Serialize, Deserialize)]
 pub struct PlayerObjectData {
     worker_id: Arc<RwLock<Option<String>>>,
     job_id: Arc<RwLock<Option<String>>>,
