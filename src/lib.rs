@@ -12,7 +12,7 @@ use prokio::time::sleep;
 use prokio::{Runtime, RuntimeBuilder};
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
@@ -21,11 +21,14 @@ pub mod background;
 pub(crate) mod constants;
 mod helpers;
 pub mod serenity;
-
+pub mod wasm_helper;
 use crate::background::connector::{initialize_client, initialize_producer};
 
+// This global state is not much of an issue becuase it is not mutable so there is no need for a Mutex here to lock it. We use mutable state here so we can support WASM.
+// As the runtime can not be seralized or deseralized
+pub static PROKIO_RUNTIME: OnceLock<Arc<Runtime>> = OnceLock::new();
 /// Represents an instance in a voice channel
-#[derive(Serialize, Deserialize)]
+
 pub struct PlayerObjectData {
     worker_id: Arc<RwLock<Option<String>>>,
     job_id: Arc<RwLock<Option<String>>>,
@@ -33,16 +36,11 @@ pub struct PlayerObjectData {
     tx: Arc<Sender<IPCData>>,
     rx: Arc<Receiver<IPCData>>,
     bg_com_tx: Sender<IPCData>,
-    runtime: Arc<Runtime>,
 }
 
 impl PlayerObjectData {
     /// Creates a new Player Object that can then be joined to channel and used to playback audio
-    pub async fn new(
-        guild_id: String,
-        com_tx: Sender<IPCData>,
-        runtime: Arc<Runtime>,
-    ) -> Result<Self, CreateJobError> {
+    pub async fn new(guild_id: String, com_tx: Sender<IPCData>) -> Result<Self, CreateJobError> {
         let (tx, rx) = kanal::bounded(60);
 
         let handler = PlayerObjectData {
@@ -52,7 +50,6 @@ impl PlayerObjectData {
             tx: Arc::new(tx),
             rx: Arc::new(rx),
             bg_com_tx: com_tx,
-            runtime,
         };
 
         Ok(handler)
@@ -64,7 +61,6 @@ pub struct Charcoal {
     pub players: Arc<RwLock<HashMap<String, PlayerObjectData>>>, // Guild ID to PlayerObject
     pub to_bg_tx: Sender<IPCData>,
     from_bg_rx: Receiver<IPCData>,
-    pub runtime: Arc<Runtime>,
 }
 
 fn start_global_checker(
@@ -154,11 +150,12 @@ pub async fn init_charcoal(broker: String, config: CharcoalConfig) -> Arc<Mutex<
 
     start_global_checker(&runtime, players.clone(), from_bg_rx.clone()); // Start checking for expired jobs
 
+    PROKIO_RUNTIME.set(runtime);
+
     let mut c_instance = Charcoal {
         players,
         to_bg_tx,
         from_bg_rx,
-        runtime,
     };
 
     Arc::new(Mutex::new(c_instance))

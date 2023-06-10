@@ -1,6 +1,6 @@
 use crate::background::connector::{boilerplate_parse_ipc, BoilerplateParseIPCError};
 use crate::background::processor::IPCData;
-use crate::PlayerObjectData;
+use crate::{PlayerObjectData, PROKIO_RUNTIME};
 use async_trait::async_trait;
 use hearth_interconnect::messages::{JobRequest, Message};
 use hearth_interconnect::worker_communication::{DWCActionType, DirectWorkerCommunication};
@@ -16,6 +16,8 @@ pub enum CreateJobError {
     TimedOutWaitingForJobCreationConfirmation { source: BoilerplateParseIPCError },
     #[snafu(display("Failed to send internal IPC job creation request"))]
     FailedToSendIPC { source: SendError },
+    #[snafu(display("Failed to get Prokio runtime for async job"))]
+    FailedToGetProkioRuntime,
 }
 
 #[derive(Debug, Snafu)]
@@ -66,7 +68,10 @@ pub async fn join_channel(
     }
     // If the above fails fallback to trying to create a new job
     let rx = instance.rx.clone();
-    instance.runtime.spawn_pinned(move || async move {
+    let runtime = PROKIO_RUNTIME
+        .get()
+        .context(FailedToGetProkioRuntimeSnafu)?;
+    runtime.spawn_pinned(move || async move {
         bg_com
             .send(IPCData::new_from_main(
                 Message::ExternalQueueJob(JobRequest {

@@ -1,12 +1,13 @@
 //! Standard actions that can be called on a PlayerObject
 
 use crate::background::processor::IPCData;
-use crate::PlayerObjectData;
+use crate::{PlayerObjectData, PROKIO_RUNTIME};
 use hearth_interconnect::errors::ErrorReport;
 use hearth_interconnect::messages::Metadata;
 use kanal::ReceiveError;
 use log::error;
 use prokio::time::sleep;
+use snafu::{OptionExt, Snafu};
 use std::time::Duration;
 
 pub trait CharcoalEventHandler {
@@ -14,14 +15,25 @@ pub trait CharcoalEventHandler {
     fn handle_metadata_response(&self, metadata: Metadata);
 }
 
+#[derive(Debug, Snafu)]
+pub enum RegisterEventHandlerError {
+    #[snafu(display("Failed to get Prokio runtime for async job"))]
+    FailedToGetProkioRuntime,
+}
+
 /// Register an error callback that will be called if an error occurs on this PlayerObject
 pub async fn register_event_handler(
     instance: &PlayerObjectData,
     event_handler: impl CharcoalEventHandler + Send + 'static,
-) {
+) -> Result<(), RegisterEventHandlerError> {
     let t_rx = instance.rx.clone();
     let guild_id = instance.guild_id.clone();
-    instance.runtime.spawn_pinned(move || async move {
+
+    let runtime = PROKIO_RUNTIME
+        .get()
+        .context(FailedToGetProkioRuntimeSnafu)?;
+
+    runtime.spawn_pinned(move || async move {
         loop {
             let x = t_rx.try_recv();
             match x {
@@ -54,4 +66,5 @@ pub async fn register_event_handler(
             sleep(Duration::from_millis(250)).await; // Don't max out the CPU
         }
     });
+    Ok(())
 }
