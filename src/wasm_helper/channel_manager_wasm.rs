@@ -29,7 +29,7 @@ pub async fn join_channel_wasm(
     instance: &PlayerObjectData,
     voice_channel_id: String,
     create_job: bool,
-) {
+) -> Result<(), ChannelManagerError> {
     Ok(())
 }
 

@@ -1,6 +1,6 @@
 use crate::background::connector::{boilerplate_parse_ipc, BoilerplateParseIPCError};
 use crate::background::processor::IPCData;
-use crate::{PlayerObjectData, PROKIO_RUNTIME};
+use crate::{PlayerObjectData, CHARCOAL_INSTANCE};
 use async_trait::async_trait;
 use hearth_interconnect::messages::{JobRequest, Message};
 use hearth_interconnect::worker_communication::{DWCActionType, DirectWorkerCommunication};
@@ -68,9 +68,10 @@ pub async fn join_channel(
     }
     // If the above fails fallback to trying to create a new job
     let rx = instance.rx.clone();
-    let runtime = PROKIO_RUNTIME
+    let runtime = &CHARCOAL_INSTANCE
         .get()
-        .context(FailedToGetProkioRuntimeSnafu)?;
+        .context(FailedToGetProkioRuntimeSnafu)?
+        .runtime;
     runtime.spawn_pinned(move || async move {
         bg_com
             .send(IPCData::new_from_main(

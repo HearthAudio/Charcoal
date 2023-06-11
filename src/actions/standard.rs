@@ -1,7 +1,7 @@
 //! Standard actions that can be called on a PlayerObject
 
-use crate::background::processor::IPCData;
-use crate::{PlayerObjectData, PROKIO_RUNTIME};
+use crate::PlayerObjectData;
+use crate::{background::processor::IPCData, CHARCOAL_INSTANCE};
 use hearth_interconnect::errors::ErrorReport;
 use hearth_interconnect::messages::Metadata;
 use kanal::ReceiveError;
@@ -29,9 +29,10 @@ pub async fn register_event_handler(
     let t_rx = instance.rx.clone();
     let guild_id = instance.guild_id.clone();
 
-    let runtime = PROKIO_RUNTIME
+    let runtime = &CHARCOAL_INSTANCE
         .get()
-        .context(FailedToGetProkioRuntimeSnafu)?;
+        .context(FailedToGetProkioRuntimeSnafu)?
+        .runtime;
 
     runtime.spawn_pinned(move || async move {
         loop {

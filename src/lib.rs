@@ -20,13 +20,12 @@ pub mod actions;
 pub mod background;
 pub(crate) mod constants;
 mod helpers;
-pub mod serenity;
 pub mod wasm_helper;
 use crate::background::connector::{initialize_client, initialize_producer};
 
 // This global state is not much of an issue becuase it is not mutable so there is no need for a Mutex here to lock it. We use mutable state here so we can support WASM.
 // As the runtime can not be seralized or deseralized
-pub static PROKIO_RUNTIME: OnceLock<Arc<Runtime>> = OnceLock::new();
+pub static CHARCOAL_INSTANCE: OnceLock<Arc<Charcoal>> = OnceLock::new();
 /// Represents an instance in a voice channel
 
 pub struct PlayerObjectData {
@@ -61,6 +60,7 @@ pub struct Charcoal {
     pub players: Arc<RwLock<HashMap<String, PlayerObjectData>>>, // Guild ID to PlayerObject
     pub to_bg_tx: Sender<IPCData>,
     from_bg_rx: Receiver<IPCData>,
+    pub(crate) runtime: Arc<Runtime>,
 }
 
 fn start_global_checker(
@@ -133,7 +133,7 @@ pub struct CharcoalConfig {
 }
 
 /// Initializes Charcoal Instance
-pub async fn init_charcoal(broker: String, config: CharcoalConfig) -> Arc<Mutex<Charcoal>> {
+pub async fn init_charcoal(broker: String, config: CharcoalConfig) {
     let consumer = initialize_client(&broker, &config).await;
 
     let producer = initialize_producer(&broker, &config);
@@ -150,13 +150,12 @@ pub async fn init_charcoal(broker: String, config: CharcoalConfig) -> Arc<Mutex<
 
     start_global_checker(&runtime, players.clone(), from_bg_rx.clone()); // Start checking for expired jobs
 
-    PROKIO_RUNTIME.set(runtime);
-
     let mut c_instance = Charcoal {
         players,
         to_bg_tx,
         from_bg_rx,
+        runtime: runtime,
     };
 
-    Arc::new(Mutex::new(c_instance))
+    CHARCOAL_INSTANCE.set(Arc::new(c_instance));
 }
