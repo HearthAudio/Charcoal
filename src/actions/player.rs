@@ -4,7 +4,7 @@ use hearth_interconnect::worker_communication::{DWCActionType, DirectWorkerCommu
 use kanal::SendError;
 
 use crate::background::processor::IPCData;
-use crate::PlayerObjectData;
+use crate::{PlayerObjectData, CHARCOAL_INSTANCE};
 use nanoid::nanoid;
 use snafu::prelude::*;
 
@@ -12,12 +12,20 @@ use snafu::prelude::*;
 pub enum PlayerActionError {
     #[snafu(display("Failed to send IPC request to Background thread"))]
     FailedToSendIPCRequest { source: SendError },
+    #[snafu(display("Failed to get Charcoal Instance"))]
+    FailedToGetCharcoalInstance {},
+    #[snafu(display("Failed to get Player Instance"))]
+    FailedToGetPlayerInstance {},
 }
 
-pub async fn play_from_http(
-    instance: &PlayerObjectData,
-    url: String,
-) -> Result<(), PlayerActionError> {
+pub async fn play_from_http(guild_id: &str, url: String) -> Result<(), PlayerActionError> {
+    let charcoal = CHARCOAL_INSTANCE
+        .get()
+        .context(FailedToGetCharcoalInstanceSnafu)?;
+    let players = charcoal.players.read().await;
+    let instance = players
+        .get(guild_id)
+        .context(FailedToGetPlayerInstanceSnafu)?;
     instance
         .bg_com_tx
         .send(IPCData::new_from_main(
@@ -40,10 +48,14 @@ pub async fn play_from_http(
 
     Ok(())
 }
-pub async fn play_from_youtube(
-    instance: &PlayerObjectData,
-    url: String,
-) -> Result<(), PlayerActionError> {
+pub async fn play_from_youtube(guild_id: &str, url: String) -> Result<(), PlayerActionError> {
+    let charcoal = CHARCOAL_INSTANCE
+        .get()
+        .context(FailedToGetCharcoalInstanceSnafu)?;
+    let players = charcoal.players.read().await;
+    let instance = players
+        .get(guild_id)
+        .context(FailedToGetPlayerInstanceSnafu)?;
     instance
         .bg_com_tx
         .send(IPCData::new_from_main(

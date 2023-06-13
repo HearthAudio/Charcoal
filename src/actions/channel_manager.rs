@@ -24,6 +24,10 @@ pub enum CreateJobError {
 pub enum ChannelManagerError {
     #[snafu(display("Failed to send IPC request to Background thread"))]
     FailedToSendIPCRequest { source: SendError },
+    #[snafu(display("Failed to get Charcoal Instance"))]
+    FailedToGetCharcoalInstance {},
+    #[snafu(display("Failed to get Player Instance"))]
+    FailedToGetPlayerInstance {},
 }
 
 /// Create job on Hearth server for this PlayerObject
@@ -150,7 +154,14 @@ pub async fn join_channel(guild_id: &str, voice_channel_id: String) -> Result<()
     Ok(())
 }
 /// Exit voice channel
-pub async fn exit_channel(instance: &PlayerObjectData) -> Result<(), ChannelManagerError> {
+pub async fn exit_channel(guild_id: &str) -> Result<(), ChannelManagerError> {
+    let charcoal = CHARCOAL_INSTANCE
+        .get()
+        .context(FailedToGetCharcoalInstanceSnafu)?;
+    let players = charcoal.players.read().await;
+    let instance = players
+        .get(guild_id)
+        .context(FailedToGetPlayerInstanceSnafu)?;
     instance
         .bg_com_tx
         .send(IPCData::new_from_main(

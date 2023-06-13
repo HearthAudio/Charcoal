@@ -1,6 +1,6 @@
 use crate::background::connector::BoilerplateParseIPCError;
 use crate::background::processor::IPCData;
-use crate::PlayerObjectData;
+use crate::{PlayerObjectData, CHARCOAL_INSTANCE};
 use async_trait::async_trait;
 use hearth_interconnect::messages::Message;
 use hearth_interconnect::worker_communication::{DWCActionType, DirectWorkerCommunication};
@@ -15,12 +15,24 @@ pub enum TrackActionError {
     FailedToSendIPCRequest { source: SendError },
     #[snafu(display("Did not receive metadata result within timeout time-frame"))]
     TimedOutWaitingForMetadataResult { source: BoilerplateParseIPCError },
+    #[snafu(display("Failed to get Charcoal Instance"))]
+    FailedToGetCharcoalInstance {},
+    #[snafu(display("Failed to get Player Instance"))]
+    FailedToGetPlayerInstance {},
 }
 
 pub async fn set_playback_volume(
-    instance: &PlayerObjectData,
     playback_volume: f32,
+    guild_id: &str,
 ) -> Result<(), TrackActionError> {
+    let charcoal = CHARCOAL_INSTANCE
+        .get()
+        .context(FailedToGetCharcoalInstanceSnafu)?;
+    let players = charcoal.players.read().await;
+    let instance = players
+        .get(guild_id)
+        .context(FailedToGetPlayerInstanceSnafu)?;
+
     instance
         .bg_com_tx
         .send(IPCData::new_from_main(
@@ -42,7 +54,15 @@ pub async fn set_playback_volume(
         .context(FailedToSendIPCRequestSnafu)?;
     Ok(())
 }
-pub async fn force_stop_loop(instance: &PlayerObjectData) -> Result<(), TrackActionError> {
+pub async fn force_stop_loop(guild_id: &str) -> Result<(), TrackActionError> {
+    let charcoal = CHARCOAL_INSTANCE
+        .get()
+        .context(FailedToGetCharcoalInstanceSnafu)?;
+    let players = charcoal.players.read().await;
+    let instance = players
+        .get(guild_id)
+        .context(FailedToGetPlayerInstanceSnafu)?;
+
     instance
         .bg_com_tx
         .send(IPCData::new_from_main(
@@ -65,7 +85,15 @@ pub async fn force_stop_loop(instance: &PlayerObjectData) -> Result<(), TrackAct
 
     Ok(())
 }
-pub async fn loop_indefinitely(instance: &PlayerObjectData) -> Result<(), TrackActionError> {
+pub async fn loop_indefinitely(guild_id: &str) -> Result<(), TrackActionError> {
+    let charcoal = CHARCOAL_INSTANCE
+        .get()
+        .context(FailedToGetCharcoalInstanceSnafu)?;
+    let players = charcoal.players.read().await;
+    let instance = players
+        .get(guild_id)
+        .context(FailedToGetPlayerInstanceSnafu)?;
+
     instance
         .bg_com_tx
         .send(IPCData::new_from_main(
@@ -89,10 +117,14 @@ pub async fn loop_indefinitely(instance: &PlayerObjectData) -> Result<(), TrackA
     Ok(())
 }
 
-pub async fn loop_x_times(
-    instance: &PlayerObjectData,
-    times: usize,
-) -> Result<(), TrackActionError> {
+pub async fn loop_x_times(times: usize, guild_id: &str) -> Result<(), TrackActionError> {
+    let charcoal = CHARCOAL_INSTANCE
+        .get()
+        .context(FailedToGetCharcoalInstanceSnafu)?;
+    let players = charcoal.players.read().await;
+    let instance = players
+        .get(guild_id)
+        .context(FailedToGetPlayerInstanceSnafu)?;
     instance
         .bg_com_tx
         .send(IPCData::new_from_main(
@@ -115,10 +147,14 @@ pub async fn loop_x_times(
 
     Ok(())
 }
-pub async fn seek_to_position(
-    instance: &PlayerObjectData,
-    position: Duration,
-) -> Result<(), TrackActionError> {
+pub async fn seek_to_position(position: Duration, guild_id: &str) -> Result<(), TrackActionError> {
+    let charcoal = CHARCOAL_INSTANCE
+        .get()
+        .context(FailedToGetCharcoalInstanceSnafu)?;
+    let players = charcoal.players.read().await;
+    let instance = players
+        .get(guild_id)
+        .context(FailedToGetPlayerInstanceSnafu)?;
     instance
         .bg_com_tx
         .send(IPCData::new_from_main(
@@ -141,7 +177,14 @@ pub async fn seek_to_position(
 
     Ok(())
 }
-pub async fn resume_playback(instance: &PlayerObjectData) -> Result<(), TrackActionError> {
+pub async fn resume_playback(guild_id: &str) -> Result<(), TrackActionError> {
+    let charcoal = CHARCOAL_INSTANCE
+        .get()
+        .context(FailedToGetCharcoalInstanceSnafu)?;
+    let players = charcoal.players.read().await;
+    let instance = players
+        .get(guild_id)
+        .context(FailedToGetPlayerInstanceSnafu)?;
     instance
         .bg_com_tx
         .send(IPCData::new_from_main(
@@ -164,7 +207,14 @@ pub async fn resume_playback(instance: &PlayerObjectData) -> Result<(), TrackAct
 
     Ok(())
 }
-pub async fn pause_playback(instance: &PlayerObjectData) -> Result<(), TrackActionError> {
+pub async fn pause_playback(guild_id: &str) -> Result<(), TrackActionError> {
+    let charcoal = CHARCOAL_INSTANCE
+        .get()
+        .context(FailedToGetCharcoalInstanceSnafu)?;
+    let players = charcoal.players.read().await;
+    let instance = players
+        .get(guild_id)
+        .context(FailedToGetPlayerInstanceSnafu)?;
     instance
         .bg_com_tx
         .send(IPCData::new_from_main(
@@ -187,7 +237,14 @@ pub async fn pause_playback(instance: &PlayerObjectData) -> Result<(), TrackActi
 
     Ok(())
 }
-pub async fn get_metadata(instance: &PlayerObjectData) -> Result<(), TrackActionError> {
+pub async fn get_metadata(guild_id: &str) -> Result<(), TrackActionError> {
+    let charcoal = CHARCOAL_INSTANCE
+        .get()
+        .context(FailedToGetCharcoalInstanceSnafu)?;
+    let players = charcoal.players.read().await;
+    let instance = players
+        .get(guild_id)
+        .context(FailedToGetPlayerInstanceSnafu)?;
     instance
         .bg_com_tx
         .send(IPCData::new_from_main(
