@@ -212,19 +212,6 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
     // Check if we have already created the player by checking if the player's GuildID exists in the Players HashMap
     // Stored inside of the Charcoal Instance.
     // If we have already created the player just join the channel
-    if mx.players.read().await.contains_key(&guild_id.to_string()) {
-        println!("Using pre-existing player");
-        // Get a write lock on the players HashMap
-        let mut players = mx.players.write().await;
-        // Get a mutable reference to said player
-        let handler = players.get_mut(&guild_id.to_string()).expect(
-            "This should never happen because we checked the key exists in the if check above",
-        );
-        // Join the channel
-        join_channel(handler, connect_to.to_string(), false)
-            .await
-            .unwrap(); // We use false here so Charcoal does not create a pre-existing job
-    } else {
         println!("Creating new player");
         // If we have not created the player create it and then join the channel
         let handler = PlayerObjectData::new(
