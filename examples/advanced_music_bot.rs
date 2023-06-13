@@ -204,55 +204,6 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
         }
     };
 
-    // Get the manager from the serenity typemap
-    let r = ctx.data.write().await;
-    let manager = r.get::<CharcoalKey>();
-    let mx = manager.unwrap().lock().await;
-
-    // Check if we have already created the player by checking if the player's GuildID exists in the Players HashMap
-    // Stored inside of the Charcoal Instance.
-    // If we have already created the player just join the channel
-        println!("Creating new player");
-        // If we have not created the player create it and then join the channel
-        let handler = PlayerObjectData::new(
-            guild_id.to_string(),
-            mx.to_bg_tx.clone(),
-            mx.runtime.clone(),
-        )
-        .await;
-        println!("Created new handler");
-        // Make sure creating the PlayerObject worked
-        match handler {
-            Ok(mut handler) => {
-                // Register an error callback so errors from the hearth server can be reported back to us
-                register_event_handler(&handler, CustomEventHandler {}).await;
-                // Join the channel
-                println!("Registered error callback");
-                join_channel(&handler, connect_to.to_string(), true)
-                    .await
-                    .unwrap(); // We use true here to tell Charcoal to create the Job
-                println!("Joined channel");
-                // Insert the newly created PlayerObject into the HashMap so we can use it later
-                mx.players
-                    .write()
-                    .await
-                    .insert(guild_id.to_string(), handler);
-                println!("Inserted new player");
-            }
-            Err(e) => {
-                // If creating the job failed send an error message
-                check_msg(
-                    msg.channel_id
-                        .say(
-                            &ctx.http,
-                            format!("Failed to register PlayerObject with error: {}", e),
-                        )
-                        .await,
-                );
-            }
-        }
-    }
-
     Ok(())
 }
 

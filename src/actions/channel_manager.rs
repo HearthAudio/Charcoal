@@ -27,9 +27,10 @@ pub enum ChannelManagerError {
 }
 
 /// Create job on Hearth server for this PlayerObject
-pub async fn join_channel(guild_id: &str, voice_channel_id: &str) -> Result<(), CreateJobError> {
+pub async fn join_channel(guild_id: &str, voice_channel_id: String) -> Result<(), CreateJobError> {
     let charcoal = CHARCOAL_INSTANCE.get().unwrap();
-    let instance = charcoal.players.read().await.get(guild_id).unwrap();
+    let players = charcoal.players.read().await;
+    let instance = players.get(guild_id).unwrap();
 
     let guild_id = instance.guild_id.clone();
 
@@ -77,65 +78,75 @@ pub async fn join_channel(guild_id: &str, voice_channel_id: &str) -> Result<(), 
                 .context(FailedToSendIPCSnafu)?;
         }
     } else {
-        let mut job_id_a = job_id.write().await;
-        let mut worker_id_a = worker_id.write().await;
-        boilerplate_parse_ipc(
-            |msg| {
-                if let IPCData::FromBackground(bg) = msg {
-                    if let Message::ExternalQueueJobResponse(q) = bg.message {
-                        *job_id_a = Some(q.job_id);
-                        *worker_id_a = Some(q.worker_id);
-                        return false;
+        let rx = instance.rx.clone();
+        let runtime = &CHARCOAL_INSTANCE
+            .get()
+            .context(FailedToGetProkioRuntimeSnafu)?
+            .runtime;
+        runtime.spawn_pinned(move || async move {
+            bg_com
+                .send(IPCData::new_from_main(
+                    Message::ExternalQueueJob(JobRequest {
+                        request_id: nanoid!(),
+                        guild_id: guild_id.clone(),
+                    }),
+                    tx.clone(),
+                    guild_id.clone(),
+                ))
+                .unwrap();
+            //
+            //
+            let mut job_id_a = job_id.write().await;
+            let mut worker_id_a = worker_id.write().await;
+            boilerplate_parse_ipc(
+                |msg| {
+                    if let IPCData::FromBackground(bg) = msg {
+                        if let Message::ExternalQueueJobResponse(q) = bg.message {
+                            *job_id_a = Some(q.job_id);
+                            *worker_id_a = Some(q.worker_id);
+                            return false;
+                        }
                     }
-                }
-                true
-            },
-            rx,
-            Duration::from_secs(10),
-        )
-        .await
-        .unwrap();
-        //
-        bg_com
-            .send(IPCData::new_from_main(
-                Message::DirectWorkerCommunication(DirectWorkerCommunication {
-                    job_id: job_id_a.clone().unwrap(),
-                    worker_id: worker_id_a.clone().unwrap(),
-                    guild_id: guild_id.clone(),
-                    voice_channel_id: Some(voice_channel_id),
-                    play_audio_url: None,
-                    action_type: DWCActionType::JoinChannel,
-                    request_id: Some(nanoid!()),
-                    new_volume: None,
-                    seek_position: None,
-                    loop_times: None,
-                }),
-                tx.clone(),
-                guild_id,
-            ))
-            .context(FailedToSendIPCRequestSnafu)
+                    true
+                },
+                rx,
+                Duration::from_secs(10),
+            )
+            .await
             .unwrap();
+            //
+            bg_com
+                .send(IPCData::new_from_main(
+                    Message::DirectWorkerCommunication(DirectWorkerCommunication {
+                        job_id: job_id_a.clone().unwrap(),
+                        worker_id: worker_id_a.clone().unwrap(),
+                        guild_id: guild_id.clone(),
+                        voice_channel_id: Some(voice_channel_id.to_string()),
+                        play_audio_url: None,
+                        action_type: DWCActionType::JoinChannel,
+                        request_id: Some(nanoid!()),
+                        new_volume: None,
+                        seek_position: None,
+                        loop_times: None,
+                    }),
+                    tx.clone(),
+                    guild_id.clone(),
+                ))
+                .context(FailedToSendIPCRequestSnafu)
+                .unwrap();
+
+            // If we have not created the player create it and then join the channel
+            let handler = PlayerObjectData::new(guild_id.clone(), charcoal.to_bg_tx.clone())
+                .await
+                .unwrap();
+            charcoal
+                .players
+                .write()
+                .await
+                .insert(guild_id.to_string(), handler);
+        });
     }
 
-    // If the above fails fallback to trying to create a new job
-    // let rx = instance.rx.clone();
-    // let runtime = &CHARCOAL_INSTANCE
-    //     .get()
-    //     .context(FailedToGetProkioRuntimeSnafu)?
-    //     .runtime;
-    // runtime.spawn_pinned(move || async move {
-    //     bg_com
-    //         .send(IPCData::new_from_main(
-    //             Message::ExternalQueueJob(JobRequest {
-    //                 request_id: nanoid!(),
-    //                 guild_id: guild_id.clone(),
-    //             }),
-    //             tx.clone(),
-    //             guild_id.clone(),
-    //         ))
-    //         .unwrap();
-    //     //
-    //
     Ok(())
 }
 /// Exit voice channel
