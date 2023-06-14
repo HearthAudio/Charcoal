@@ -27,7 +27,7 @@ use crate::background::connector::{initialize_client, initialize_producer};
 // As the runtime can not be seralized or deseralized
 pub static CHARCOAL_INSTANCE: OnceLock<Arc<Charcoal>> = OnceLock::new();
 /// Represents an instance in a voice channel
-
+#[derive(Debug)]
 pub struct PlayerObjectData {
     worker_id: Arc<RwLock<Option<String>>>,
     job_id: Arc<RwLock<Option<String>>>,
@@ -56,6 +56,7 @@ impl PlayerObjectData {
 }
 
 /// Stores Charcoal instance
+#[derive(Debug)]
 pub struct Charcoal {
     pub players: Arc<RwLock<HashMap<String, PlayerObjectData>>>, // Guild ID to PlayerObject
     pub to_bg_tx: Sender<IPCData>,
@@ -157,5 +158,5 @@ pub async fn init_charcoal(broker: String, config: CharcoalConfig) {
         runtime: runtime,
     };
 
-    CHARCOAL_INSTANCE.set(Arc::new(c_instance));
+    CHARCOAL_INSTANCE.set(Arc::new(c_instance)).unwrap();
 }

@@ -31,20 +31,11 @@ pub enum ChannelManagerError {
 }
 
 /// Create job on Hearth server for this PlayerObject
-pub async fn join_channel(guild_id: &str, voice_channel_id: String) -> Result<(), CreateJobError> {
+pub async fn join_channel(
+    guild_id: String,
+    voice_channel_id: String,
+) -> Result<(), CreateJobError> {
     let charcoal = CHARCOAL_INSTANCE.get().unwrap();
-    let players = charcoal.players.read().await;
-    let instance = players.get(guild_id).unwrap();
-
-    let guild_id = instance.guild_id.clone();
-
-    let tx = instance.tx.clone();
-    let bg_com = instance.bg_com_tx.clone();
-
-    let worker_id = instance.worker_id.clone();
-    let job_id = instance.job_id.clone();
-
-    drop(instance);
 
     if charcoal
         .players
@@ -56,6 +47,13 @@ pub async fn join_channel(guild_id: &str, voice_channel_id: String) -> Result<()
         let handler = players.get_mut(&guild_id.to_string()).expect(
             "This should never happen because we checked the key exists in the if check above",
         );
+        let instance = players.get(&guild_id).unwrap();
+
+        let tx = instance.tx.clone();
+        let bg_com = instance.bg_com_tx.clone();
+
+        let worker_id = instance.worker_id.clone();
+        let job_id = instance.job_id.clone();
 
         let job_id = job_id.read().await.clone();
         let worker_id = worker_id.read().await.clone();
@@ -82,26 +80,28 @@ pub async fn join_channel(guild_id: &str, voice_channel_id: String) -> Result<()
                 .context(FailedToSendIPCSnafu)?;
         }
     } else {
-        let rx = instance.rx.clone();
-        let runtime = &CHARCOAL_INSTANCE
-            .get()
-            .context(FailedToGetProkioRuntimeSnafu)?
-            .runtime;
-        runtime.spawn_pinned(move || async move {
-            bg_com
+        let guild_id = guild_id.clone();
+        charcoal.runtime.spawn_pinned(move || async move {
+            let handler =
+                PlayerObjectData::new(guild_id.to_string().clone(), charcoal.to_bg_tx.clone())
+                    .await
+                    .unwrap();
+
+            charcoal
+                .to_bg_tx
                 .send(IPCData::new_from_main(
                     Message::ExternalQueueJob(JobRequest {
                         request_id: nanoid!(),
-                        guild_id: guild_id.clone(),
+                        guild_id: guild_id.to_string().clone(),
                     }),
-                    tx.clone(),
-                    guild_id.clone(),
+                    handler.tx.clone(),
+                    guild_id.to_string().clone(),
                 ))
                 .unwrap();
             //
             //
-            let mut job_id_a = job_id.write().await;
-            let mut worker_id_a = worker_id.write().await;
+            let mut job_id_a = handler.job_id.write().await;
+            let mut worker_id_a = handler.worker_id.write().await;
             boilerplate_parse_ipc(
                 |msg| {
                     if let IPCData::FromBackground(bg) = msg {
@@ -113,18 +113,20 @@ pub async fn join_channel(guild_id: &str, voice_channel_id: String) -> Result<()
                     }
                     true
                 },
-                rx,
+                handler.rx.clone(),
                 Duration::from_secs(10),
             )
             .await
             .unwrap();
+
             //
-            bg_com
+            charcoal
+                .to_bg_tx
                 .send(IPCData::new_from_main(
                     Message::DirectWorkerCommunication(DirectWorkerCommunication {
                         job_id: job_id_a.clone().unwrap(),
                         worker_id: worker_id_a.clone().unwrap(),
-                        guild_id: guild_id.clone(),
+                        guild_id: guild_id.to_string().clone(),
                         voice_channel_id: Some(voice_channel_id.to_string()),
                         play_audio_url: None,
                         action_type: DWCActionType::JoinChannel,
@@ -133,16 +135,15 @@ pub async fn join_channel(guild_id: &str, voice_channel_id: String) -> Result<()
                         seek_position: None,
                         loop_times: None,
                     }),
-                    tx.clone(),
-                    guild_id.clone(),
+                    handler.tx.clone(),
+                    guild_id.to_string().clone(),
                 ))
                 .context(FailedToSendIPCRequestSnafu)
                 .unwrap();
 
-            // If we have not created the player create it and then join the channel
-            let handler = PlayerObjectData::new(guild_id.clone(), charcoal.to_bg_tx.clone())
-                .await
-                .unwrap();
+            drop(job_id_a);
+            drop(worker_id_a);
+
             charcoal
                 .players
                 .write()

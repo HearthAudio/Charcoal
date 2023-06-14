@@ -104,7 +104,8 @@ async fn main() {
             ssl: None,
             kafka_topic: "communication".to_string(),
         },
-    );
+    )
+    .await;
 
     let mut client = Client::builder(&token, intents)
         .event_handler(Handler)
@@ -166,6 +167,10 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
             return Ok(());
         }
     };
+
+    join_channel(guild_id.to_string(), connect_to.to_string())
+        .await
+        .unwrap();
 
     Ok(())
 }
