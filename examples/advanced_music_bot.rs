@@ -6,16 +6,19 @@ use log::error;
 use std::time::Duration;
 
 // Import the `Context` to handle commands.
-use charcoal_client::serenity::{CharcoalKey, SerenityInit};
-use serenity::client::Context;
-
-use charcoal_client::actions::channel_manager::ChannelManager;
-use charcoal_client::actions::player::Player;
-use charcoal_client::actions::track_manager::TrackManager;
 use charcoal_client::{
-    get_handler_from_serenity, get_handler_from_serenity_mutable, CharcoalConfig, PlayerObject,
-    SASLConfig,
+    actions::{
+        channel_manager::{exit_channel, join_channel},
+        player::{play_from_http, play_from_youtube},
+        standard::register_event_handler,
+        track_manager::{
+            force_stop_loop, get_metadata, loop_indefinitely, loop_x_times, pause_playback,
+            resume_playback, seek_to_position, set_playback_volume,
+        },
+    },
+    init_charcoal, CharcoalConfig, SASLConfig,
 };
+use serenity::client::Context;
 
 // IMPORTANT NOTE:
 // This example uses unwrap()s on the Results<> from charcoal
@@ -91,23 +94,23 @@ async fn main() {
 
     let intents = GatewayIntents::non_privileged() | GatewayIntents::MESSAGE_CONTENT;
 
+    init_charcoal(
+        env::var("KAFKA_BROKER").expect("Expected KAFKA_BROKER env variable"),
+        CharcoalConfig {
+            sasl: Some(SASLConfig {
+                kafka_username: env::var("KAFKA_USER").expect("Expected KAFKA_BROKER env variable"),
+                kafka_password: env::var("KAFKA_PASS").expect("Expected KAFKA_BROKER env variable"),
+            }),
+            ssl: None,
+            kafka_topic: "communication".to_string(),
+        },
+    )
+    .await;
+
     let mut client = Client::builder(&token, intents)
         .event_handler(Handler)
         .framework(framework)
         // Add a Kafka URL here to connect to the broker
-        .register_charcoal(
-            env::var("KAFKA_BROKER").expect("Expected KAFKA_BROKER env variable"),
-            CharcoalConfig {
-                sasl: Some(SASLConfig {
-                    kafka_username: env::var("KAFKA_USER")
-                        .expect("Expected KAFKA_BROKER env variable"),
-                    kafka_password: env::var("KAFKA_PASS")
-                        .expect("Expected KAFKA_BROKER env variable"),
-                }),
-                ssl: None,
-                kafka_topic: "communication".to_string(),
-            },
-        )
         .await
         .expect("Err creating client");
 
@@ -126,17 +129,10 @@ async fn main() {
 #[only_in(guilds)]
 async fn pause(ctx: &Context, msg: &Message) -> CommandResult {
     // Get the PlayerObject using a helper macro
-    let mut handler: Option<&PlayerObject> = None;
-    get_handler_from_serenity!(ctx, msg, handler);
+    let guild = msg.guild(&ctx.cache).unwrap();
+    let guild_id = guild.id.to_string();
 
-    match handler {
-        Some(handler) => {
-            handler.pause_playback().await.unwrap();
-        }
-        None => {
-            error!("Failed to get manager!");
-        }
-    }
+    pause_playback(&guild_id).await.unwrap();
 
     Ok(())
 }
@@ -144,33 +140,9 @@ async fn pause(ctx: &Context, msg: &Message) -> CommandResult {
 #[command]
 #[only_in(guilds)]
 async fn resume(ctx: &Context, msg: &Message) -> CommandResult {
-    // Get the PlayerObject using a helper macro
-    let mut handler: Option<&PlayerObject> = None;
-    get_handler_from_serenity!(ctx, msg, handler);
-
-    // If you don't want to use the macro you can also get the PlayerObject like this
-    // As it is pretty much equivalent to the above macro:
-
-    // // Get the serenity typemap
-    // let r = ctx.data.read().await;
-    // // Get the GuildID
-    // let guild = msg.guild(&ctx.cache).unwrap();
-    // let guild_id = guild.id;
-    // // Get the charcoal manager from the serenity typemap
-    // let manager = r.get::<CharcoalKey>();
-    // let mut mx = manager.unwrap().lock().await;
-    // // Get the PlayerObject
-    // let mut players = mx.players.write().await;
-    // let handler =  players.get_mut(&guild_id.to_string());
-
-    match handler {
-        Some(handler) => {
-            handler.resume_playback().await.unwrap();
-        }
-        None => {
-            error!("Failed to get manager!");
-        }
-    }
+    let guild = msg.guild(&ctx.cache).unwrap();
+    let guild_id = guild.id.to_string();
+    resume_playback(&guild_id).await.unwrap();
 
     Ok(())
 }
@@ -196,64 +168,9 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
         }
     };
 
-    // Get the manager from the serenity typemap
-    let r = ctx.data.write().await;
-    let manager = r.get::<CharcoalKey>();
-    let mx = manager.unwrap().lock().await;
-
-    // Check if we have already created the player by checking if the player's GuildID exists in the Players HashMap
-    // Stored inside of the Charcoal Instance.
-    // If we have already created the player just join the channel
-    if mx.players.read().await.contains_key(&guild_id.to_string()) {
-        println!("Using pre-existing player");
-        // Get a write lock on the players HashMap
-        let mut players = mx.players.write().await;
-        // Get a mutable reference to said player
-        let handler = players.get_mut(&guild_id.to_string()).expect(
-            "This should never happen because we checked the key exists in the if check above",
-        );
-        // Join the channel
-        handler
-            .join_channel(connect_to.to_string(), false)
-            .await
-            .unwrap(); // We use false here so Charcoal does not create a pre-existing job
-    } else {
-        println!("Creating new player");
-        // If we have not created the player create it and then join the channel
-        let handler = PlayerObject::new(guild_id.to_string(), mx.tx.clone()).await;
-        println!("Created new handler");
-        // Make sure creating the PlayerObject worked
-        match handler {
-            Ok(mut handler) => {
-                // Register an error callback so errors from the hearth server can be reported back to us
-                handler.register_event_handler(CustomEventHandler {}).await;
-                // Join the channel
-                println!("Registered error callback");
-                handler
-                    .join_channel(connect_to.to_string(), true)
-                    .await
-                    .unwrap(); // We use true here to tell Charcoal to create the Job
-                println!("Joined channel");
-                // Insert the newly created PlayerObject into the HashMap so we can use it later
-                mx.players
-                    .write()
-                    .await
-                    .insert(guild_id.to_string(), handler);
-                println!("Inserted new player");
-            }
-            Err(e) => {
-                // If creating the job failed send an error message
-                check_msg(
-                    msg.channel_id
-                        .say(
-                            &ctx.http,
-                            format!("Failed to register PlayerObject with error: {}", e),
-                        )
-                        .await,
-                );
-            }
-        }
-    }
+    join_channel(guild_id.to_string(), connect_to.to_string())
+        .await
+        .unwrap();
 
     Ok(())
 }
@@ -261,20 +178,10 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
 #[command]
 #[only_in(guilds)]
 async fn metadata(ctx: &Context, msg: &Message) -> CommandResult {
-    // Get the PlayerObject using a helper macro
-    let mut handler: Option<&mut PlayerObject> = None;
-    // This get's a mutable PlayerObject instead of a constant one
-    // Be careful where you use this as getting the playerobject as mutable locks the internal RwLock Mutex
-    get_handler_from_serenity_mutable!(ctx, msg, handler);
+    let guild = msg.guild(&ctx.cache).unwrap();
+    let guild_id = guild.id.to_string();
 
-    match handler {
-        Some(handler) => {
-            handler.get_metadata().await.unwrap();
-        }
-        None => {
-            error!("Failed to get manager!");
-        }
-    }
+    get_metadata(&guild_id).await.unwrap();
 
     Ok(())
 }
@@ -282,19 +189,10 @@ async fn metadata(ctx: &Context, msg: &Message) -> CommandResult {
 #[command]
 #[only_in(guilds)]
 async fn loopforever(ctx: &Context, msg: &Message) -> CommandResult {
-    // Get the PlayerObject using a helper macro
-    let mut handler: Option<&PlayerObject> = None;
-    get_handler_from_serenity!(ctx, msg, handler);
-
-    match handler {
-        Some(handler) => {
-            let _meta = handler.loop_indefinitely().await;
-            check_msg(msg.channel_id.say(&ctx.http, "Looping forever!").await);
-        }
-        None => {
-            error!("Failed to get manager!");
-        }
-    }
+    let guild = msg.guild(&ctx.cache).unwrap();
+    let guild_id = guild.id.to_string();
+    loop_indefinitely(&guild_id).await.unwrap();
+    check_msg(msg.channel_id.say(&ctx.http, "Looping forever!").await);
 
     Ok(())
 }
@@ -302,18 +200,9 @@ async fn loopforever(ctx: &Context, msg: &Message) -> CommandResult {
 #[command]
 #[only_in(guilds)]
 async fn leave(ctx: &Context, msg: &Message) -> CommandResult {
-    // Get the PlayerObject using a helper macro
-    let mut handler: Option<&PlayerObject> = None;
-    get_handler_from_serenity!(ctx, msg, handler);
-
-    match handler {
-        Some(handler) => {
-            handler.exit_channel().await;
-        }
-        None => {
-            error!("Failed to get manager!");
-        }
-    }
+    let guild = msg.guild(&ctx.cache).unwrap();
+    let guild_id = guild.id.to_string();
+    exit_channel(&guild_id).await;
 
     Ok(())
 }
@@ -351,19 +240,11 @@ async fn play(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
         return Ok(());
     }
 
-    // Get the PlayerObject using a helper macro
-    let mut handler: Option<&mut PlayerObject> = None;
-    get_handler_from_serenity_mutable!(ctx, msg, handler);
+    let guild = msg.guild(&ctx.cache).unwrap();
+    let guild_id = guild.id.to_string();
 
-    match handler {
-        Some(handler) => {
-            handler.play_from_http(url).await.unwrap();
-            check_msg(msg.channel_id.say(&ctx.http, "Playing song").await);
-        }
-        None => {
-            error!("Failed to get manager!");
-        }
-    }
+    play_from_http(&guild_id, url).await.unwrap();
+    check_msg(msg.channel_id.say(&ctx.http, "Playing song").await);
 
     Ok(())
 }
@@ -371,6 +252,8 @@ async fn play(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 #[command]
 #[only_in(guilds)]
 async fn youtube(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+    let guild = msg.guild(&ctx.cache).unwrap();
+    let guild_id = guild.id.to_string();
     let url = match args.single::<String>() {
         Ok(url) => url,
         Err(_) => {
@@ -394,23 +277,12 @@ async fn youtube(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
         return Ok(());
     }
 
-    // Get the PlayerObject using a helper macro
-    let mut handler: Option<&mut PlayerObject> = None;
-    get_handler_from_serenity_mutable!(ctx, msg, handler);
-
-    match handler {
-        Some(handler) => {
-            handler.play_from_youtube(url).await.unwrap();
-            check_msg(
-                msg.channel_id
-                    .say(&ctx.http, "Playing song from YouTube")
-                    .await,
-            );
-        }
-        None => {
-            error!("Failed to get manager!");
-        }
-    }
+    play_from_youtube(&guild_id, url).await.unwrap();
+    check_msg(
+        msg.channel_id
+            .say(&ctx.http, "Playing song from YouTube")
+            .await,
+    );
 
     Ok(())
 }
@@ -418,6 +290,8 @@ async fn youtube(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 #[command]
 #[only_in(guilds)]
 async fn volume(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+    let guild = msg.guild(&ctx.cache).unwrap();
+    let guild_id = guild.id.to_string();
     let volume = match args.single::<f32>() {
         Ok(url) => url,
         Err(_) => {
@@ -434,19 +308,8 @@ async fn volume(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     // Make sure that volume is between 0 and 1. As for performance reasons the Hearth server does not have soft-clipping enabled
     // So any values above 1 may clip
     if volume >= 0.0 && volume <= 1.0 {
-        // Get the PlayerObject using a helper macro
-        let mut handler: Option<&PlayerObject> = None;
-        get_handler_from_serenity!(ctx, msg, handler);
-
-        match handler {
-            Some(handler) => {
-                handler.set_playback_volume(volume).await.unwrap();
-                check_msg(msg.channel_id.say(&ctx.http, "Set volume").await);
-            }
-            None => {
-                error!("Failed to get manager!");
-            }
-        }
+        set_playback_volume(volume, &guild_id).await.unwrap();
+        check_msg(msg.channel_id.say(&ctx.http, "Set volume").await);
     } else {
         check_msg(
             msg.channel_id
@@ -461,19 +324,11 @@ async fn volume(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 #[command]
 #[only_in(guilds)]
 async fn stoploop(ctx: &Context, msg: &Message) -> CommandResult {
-    // Get the PlayerObject using a helper macro
-    let mut handler: Option<&PlayerObject> = None;
-    get_handler_from_serenity!(ctx, msg, handler);
+    let guild = msg.guild(&ctx.cache).unwrap();
+    let guild_id = guild.id.to_string();
 
-    match handler {
-        Some(handler) => {
-            handler.force_stop_loop().await.unwrap();
-            check_msg(msg.channel_id.say(&ctx.http, "Canceled Loop").await);
-        }
-        None => {
-            error!("Failed to get manager!");
-        }
-    }
+    force_stop_loop(&guild_id).await.unwrap();
+    check_msg(msg.channel_id.say(&ctx.http, "Canceled Loop").await);
 
     Ok(())
 }
@@ -481,6 +336,8 @@ async fn stoploop(ctx: &Context, msg: &Message) -> CommandResult {
 #[command]
 #[only_in(guilds)]
 async fn looptimes(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+    let guild = msg.guild(&ctx.cache).unwrap();
+    let guild_id = guild.id.to_string();
     let times = match args.single::<usize>() {
         Ok(times) => times,
         Err(_) => {
@@ -494,23 +351,12 @@ async fn looptimes(ctx: &Context, msg: &Message, mut args: Args) -> CommandResul
         }
     };
 
-    // Get the PlayerObject using a helper macro
-    let mut handler: Option<&PlayerObject> = None;
-    get_handler_from_serenity!(ctx, msg, handler);
-
-    match handler {
-        Some(handler) => {
-            handler.loop_x_times(times).await.unwrap();
-            check_msg(
-                msg.channel_id
-                    .say(&ctx.http, format!("Looping {} time(s)", times))
-                    .await,
-            );
-        }
-        None => {
-            error!("Failed to get manager!");
-        }
-    }
+    loop_x_times(times, &guild_id).await.unwrap();
+    check_msg(
+        msg.channel_id
+            .say(&ctx.http, format!("Looping {} time(s)", times))
+            .await,
+    );
 
     Ok(())
 }
@@ -518,6 +364,8 @@ async fn looptimes(ctx: &Context, msg: &Message, mut args: Args) -> CommandResul
 #[command]
 #[only_in(guilds)]
 async fn position(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+    let guild = msg.guild(&ctx.cache).unwrap();
+    let guild_id = guild.id.to_string();
     let position = match args.single::<u64>() {
         Ok(position) => position,
         Err(_) => {
@@ -531,22 +379,10 @@ async fn position(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
         }
     };
 
-    // Get the PlayerObject using a helper macro
-    let mut handler: Option<&PlayerObject> = None;
-    get_handler_from_serenity!(ctx, msg, handler);
-
-    match handler {
-        Some(handler) => {
-            handler
-                .seek_to_position(Duration::from_secs(position))
-                .await
-                .unwrap();
-            check_msg(msg.channel_id.say(&ctx.http, "Seeking...").await);
-        }
-        None => {
-            error!("Failed to get manager!");
-        }
-    }
+    seek_to_position(Duration::from_secs(position), &guild_id)
+        .await
+        .unwrap();
+    check_msg(msg.channel_id.say(&ctx.http, "Seeking...").await);
 
     Ok(())
 }

@@ -1,218 +1,269 @@
+use crate::background::connector::BoilerplateParseIPCError;
+use crate::background::processor::IPCData;
+use crate::{PlayerObjectData, CHARCOAL_INSTANCE};
 use async_trait::async_trait;
 use hearth_interconnect::messages::Message;
 use hearth_interconnect::worker_communication::{DWCActionType, DirectWorkerCommunication};
-use std::time::Duration;
+use kanal::SendError;
 use nanoid::nanoid;
-use crate::background::connector::BoilerplateParseIPCError;
-use crate::background::processor::IPCData;
-use crate::PlayerObject;
 use snafu::prelude::*;
-use tokio::sync::broadcast::error::SendError;
+use std::time::Duration;
 
 #[derive(Debug, Snafu)]
 pub enum TrackActionError {
     #[snafu(display("Failed to send IPC request to Background thread"))]
-    FailedToSendIPCRequest { source: SendError<IPCData> },
+    FailedToSendIPCRequest { source: SendError },
     #[snafu(display("Did not receive metadata result within timeout time-frame"))]
     TimedOutWaitingForMetadataResult { source: BoilerplateParseIPCError },
+    #[snafu(display("Failed to get Charcoal Instance"))]
+    FailedToGetCharcoalInstance {},
+    #[snafu(display("Failed to get Player Instance"))]
+    FailedToGetPlayerInstance {},
 }
 
-#[async_trait]
-/// Provides functionality that can be used once you start playing a track such as: looping, pausing, and resuming.
-pub trait TrackManager {
-    /// Set playback volume
-    async fn set_playback_volume(&self, playback_volume: f32) -> Result<(), TrackActionError>;
-    /// Stop looping
-    async fn force_stop_loop(&self) -> Result<(), TrackActionError>;
-    /// Loop forever
-    async fn loop_indefinitely(&self) -> Result<(), TrackActionError>;
-    /// Loop X amount of times
-    async fn loop_x_times(&self, times: usize) -> Result<(), TrackActionError>;
-    /// Seek to position on track from start
-    async fn seek_to_position(&self, position: Duration) -> Result<(), TrackActionError>;
-    /// Resume playback
-    async fn resume_playback(&self) -> Result<(), TrackActionError>;
-    /// Pause playback
-    async fn pause_playback(&self) -> Result<(), TrackActionError>;
-    /// Get metadata for track currently being played
-    async fn get_metadata(&mut self) -> Result<(), TrackActionError>;
+pub async fn set_playback_volume(
+    playback_volume: f32,
+    guild_id: &str,
+) -> Result<(), TrackActionError> {
+    let charcoal = CHARCOAL_INSTANCE
+        .get()
+        .context(FailedToGetCharcoalInstanceSnafu)?;
+    let players = charcoal.players.read().await;
+    let instance = players
+        .get(guild_id)
+        .context(FailedToGetPlayerInstanceSnafu)?;
+
+    instance
+        .bg_com_tx
+        .send(IPCData::new_from_main(
+            Message::DirectWorkerCommunication(DirectWorkerCommunication {
+                job_id: instance.job_id.read().await.clone().unwrap(),
+                action_type: DWCActionType::SetPlaybackVolume,
+                play_audio_url: None,
+                guild_id: instance.guild_id.clone(),
+                request_id: Some(nanoid!()),
+                new_volume: Some(playback_volume),
+                seek_position: None,
+                loop_times: None,
+                worker_id: instance.worker_id.read().await.clone().unwrap(),
+                voice_channel_id: None,
+            }),
+            instance.tx.clone(),
+            instance.guild_id.clone(),
+        ))
+        .context(FailedToSendIPCRequestSnafu)?;
+    Ok(())
 }
-#[async_trait]
-impl TrackManager for PlayerObject {
-    async fn set_playback_volume(&self, playback_volume: f32) -> Result<(), TrackActionError> {
-        self.bg_com_tx
-            .send(IPCData::new_from_main(
-                Message::DirectWorkerCommunication(DirectWorkerCommunication {
-                    job_id: self.job_id.read().await.clone().unwrap(),
-                    action_type: DWCActionType::SetPlaybackVolume,
-                    play_audio_url: None,
-                    guild_id: self.guild_id.clone(),
-                    request_id: Some(nanoid!()),
-                    new_volume: Some(playback_volume),
-                    seek_position: None,
-                    loop_times: None,
-                    worker_id: self.worker_id.read().await.clone().unwrap(),
-                    voice_channel_id: None,
-                }),
-                self.tx.clone(),
-                self.guild_id.clone(),
-            ))
-            .context(FailedToSendIPCRequestSnafu)?;
-        Ok(())
-    }
-    async fn force_stop_loop(&self) -> Result<(), TrackActionError> {
-        self.bg_com_tx
-            .send(IPCData::new_from_main(
-                Message::DirectWorkerCommunication(DirectWorkerCommunication {
-                    job_id: self.job_id.read().await.clone().unwrap(),
-                    action_type: DWCActionType::ForceStopLoop,
-                    play_audio_url: None,
-                    guild_id: self.guild_id.clone(),
-                    request_id: Some(nanoid!()),
-                    new_volume: None,
-                    seek_position: None,
-                    loop_times: None,
-                    worker_id: self.worker_id.read().await.clone().unwrap(),
-                    voice_channel_id: None,
-                }),
-                self.tx.clone(),
-                self.guild_id.clone(),
-            ))
-            .context(FailedToSendIPCRequestSnafu)?;
+pub async fn force_stop_loop(guild_id: &str) -> Result<(), TrackActionError> {
+    let charcoal = CHARCOAL_INSTANCE
+        .get()
+        .context(FailedToGetCharcoalInstanceSnafu)?;
+    let players = charcoal.players.read().await;
+    let instance = players
+        .get(guild_id)
+        .context(FailedToGetPlayerInstanceSnafu)?;
 
-        Ok(())
-    }
-    async fn loop_indefinitely(&self) -> Result<(), TrackActionError> {
-        self.bg_com_tx
-            .send(IPCData::new_from_main(
-                Message::DirectWorkerCommunication(DirectWorkerCommunication {
-                    job_id: self.job_id.read().await.clone().unwrap(),
-                    action_type: DWCActionType::LoopForever,
-                    play_audio_url: None,
-                    guild_id: self.guild_id.clone(),
-                    request_id: Some(nanoid!()),
-                    new_volume: None,
-                    seek_position: None,
-                    loop_times: None,
-                    worker_id: self.worker_id.read().await.clone().unwrap(),
-                    voice_channel_id: None,
-                }),
-                self.tx.clone(),
-                self.guild_id.clone(),
-            ))
-            .context(FailedToSendIPCRequestSnafu)?;
+    instance
+        .bg_com_tx
+        .send(IPCData::new_from_main(
+            Message::DirectWorkerCommunication(DirectWorkerCommunication {
+                job_id: instance.job_id.read().await.clone().unwrap(),
+                action_type: DWCActionType::ForceStopLoop,
+                play_audio_url: None,
+                guild_id: instance.guild_id.clone(),
+                request_id: Some(nanoid!()),
+                new_volume: None,
+                seek_position: None,
+                loop_times: None,
+                worker_id: instance.worker_id.read().await.clone().unwrap(),
+                voice_channel_id: None,
+            }),
+            instance.tx.clone(),
+            instance.guild_id.clone(),
+        ))
+        .context(FailedToSendIPCRequestSnafu)?;
 
-        Ok(())
-    }
+    Ok(())
+}
+pub async fn loop_indefinitely(guild_id: &str) -> Result<(), TrackActionError> {
+    let charcoal = CHARCOAL_INSTANCE
+        .get()
+        .context(FailedToGetCharcoalInstanceSnafu)?;
+    let players = charcoal.players.read().await;
+    let instance = players
+        .get(guild_id)
+        .context(FailedToGetPlayerInstanceSnafu)?;
 
-    async fn loop_x_times(&self, times: usize) -> Result<(), TrackActionError> {
-        self.bg_com_tx
-            .send(IPCData::new_from_main(
-                Message::DirectWorkerCommunication(DirectWorkerCommunication {
-                    job_id: self.job_id.read().await.clone().unwrap(),
-                    action_type: DWCActionType::LoopXTimes,
-                    play_audio_url: None,
-                    guild_id: self.guild_id.clone(),
-                    request_id: Some(nanoid!()),
-                    new_volume: None,
-                    seek_position: None,
-                    loop_times: Some(times),
-                    worker_id: self.worker_id.read().await.clone().unwrap(),
-                    voice_channel_id: None,
-                }),
-                self.tx.clone(),
-                self.guild_id.clone(),
-            ))
-            .context(FailedToSendIPCRequestSnafu)?;
+    instance
+        .bg_com_tx
+        .send(IPCData::new_from_main(
+            Message::DirectWorkerCommunication(DirectWorkerCommunication {
+                job_id: instance.job_id.read().await.clone().unwrap(),
+                action_type: DWCActionType::LoopForever,
+                play_audio_url: None,
+                guild_id: instance.guild_id.clone(),
+                request_id: Some(nanoid!()),
+                new_volume: None,
+                seek_position: None,
+                loop_times: None,
+                worker_id: instance.worker_id.read().await.clone().unwrap(),
+                voice_channel_id: None,
+            }),
+            instance.tx.clone(),
+            instance.guild_id.clone(),
+        ))
+        .context(FailedToSendIPCRequestSnafu)?;
 
-        Ok(())
-    }
-    async fn seek_to_position(&self, position: Duration) -> Result<(), TrackActionError> {
-        self.bg_com_tx
-            .send(IPCData::new_from_main(
-                Message::DirectWorkerCommunication(DirectWorkerCommunication {
-                    job_id: self.job_id.read().await.clone().unwrap(),
-                    action_type: DWCActionType::SeekToPosition,
-                    play_audio_url: None,
-                    guild_id: self.guild_id.clone(),
-                    request_id: Some(nanoid!()),
-                    new_volume: None,
-                    seek_position: Some(position.as_millis() as u64),
-                    loop_times: None,
-                    worker_id: self.worker_id.read().await.clone().unwrap(),
-                    voice_channel_id: None,
-                }),
-                self.tx.clone(),
-                self.guild_id.clone(),
-            ))
-            .context(FailedToSendIPCRequestSnafu)?;
+    Ok(())
+}
 
-        Ok(())
-    }
-    async fn resume_playback(&self) -> Result<(), TrackActionError> {
-        self.bg_com_tx
-            .send(IPCData::new_from_main(
-                Message::DirectWorkerCommunication(DirectWorkerCommunication {
-                    job_id: self.job_id.read().await.clone().unwrap(),
-                    action_type: DWCActionType::ResumePlayback,
-                    play_audio_url: None,
-                    guild_id: self.guild_id.clone(),
-                    request_id: Some(nanoid!()),
-                    new_volume: None,
-                    seek_position: None,
-                    loop_times: None,
-                    worker_id: self.worker_id.read().await.clone().unwrap(),
-                    voice_channel_id: None,
-                }),
-                self.tx.clone(),
-                self.guild_id.clone(),
-            ))
-            .context(FailedToSendIPCRequestSnafu)?;
+pub async fn loop_x_times(times: usize, guild_id: &str) -> Result<(), TrackActionError> {
+    let charcoal = CHARCOAL_INSTANCE
+        .get()
+        .context(FailedToGetCharcoalInstanceSnafu)?;
+    let players = charcoal.players.read().await;
+    let instance = players
+        .get(guild_id)
+        .context(FailedToGetPlayerInstanceSnafu)?;
+    instance
+        .bg_com_tx
+        .send(IPCData::new_from_main(
+            Message::DirectWorkerCommunication(DirectWorkerCommunication {
+                job_id: instance.job_id.read().await.clone().unwrap(),
+                action_type: DWCActionType::LoopXTimes,
+                play_audio_url: None,
+                guild_id: instance.guild_id.clone(),
+                request_id: Some(nanoid!()),
+                new_volume: None,
+                seek_position: None,
+                loop_times: Some(times),
+                worker_id: instance.worker_id.read().await.clone().unwrap(),
+                voice_channel_id: None,
+            }),
+            instance.tx.clone(),
+            instance.guild_id.clone(),
+        ))
+        .context(FailedToSendIPCRequestSnafu)?;
 
-        Ok(())
-    }
-    async fn pause_playback(&self) -> Result<(), TrackActionError> {
-        self.bg_com_tx
-            .send(IPCData::new_from_main(
-                Message::DirectWorkerCommunication(DirectWorkerCommunication {
-                    job_id: self.job_id.read().await.clone().unwrap(),
-                    action_type: DWCActionType::PausePlayback,
-                    play_audio_url: None,
-                    guild_id: self.guild_id.clone(),
-                    request_id: Some(nanoid!()),
-                    new_volume: None,
-                    seek_position: None,
-                    loop_times: None,
-                    worker_id: self.worker_id.read().await.clone().unwrap(),
-                    voice_channel_id: None,
-                }),
-                self.tx.clone(),
-                self.guild_id.clone(),
-            ))
-            .context(FailedToSendIPCRequestSnafu)?;
+    Ok(())
+}
+pub async fn seek_to_position(position: Duration, guild_id: &str) -> Result<(), TrackActionError> {
+    let charcoal = CHARCOAL_INSTANCE
+        .get()
+        .context(FailedToGetCharcoalInstanceSnafu)?;
+    let players = charcoal.players.read().await;
+    let instance = players
+        .get(guild_id)
+        .context(FailedToGetPlayerInstanceSnafu)?;
+    instance
+        .bg_com_tx
+        .send(IPCData::new_from_main(
+            Message::DirectWorkerCommunication(DirectWorkerCommunication {
+                job_id: instance.job_id.read().await.clone().unwrap(),
+                action_type: DWCActionType::SeekToPosition,
+                play_audio_url: None,
+                guild_id: instance.guild_id.clone(),
+                request_id: Some(nanoid!()),
+                new_volume: None,
+                seek_position: Some(position.as_millis() as u64),
+                loop_times: None,
+                worker_id: instance.worker_id.read().await.clone().unwrap(),
+                voice_channel_id: None,
+            }),
+            instance.tx.clone(),
+            instance.guild_id.clone(),
+        ))
+        .context(FailedToSendIPCRequestSnafu)?;
 
-        Ok(())
-    }
-    async fn get_metadata(&mut self) -> Result<(), TrackActionError> {
-        self.bg_com_tx
-            .send(IPCData::new_from_main(
-                Message::DirectWorkerCommunication(DirectWorkerCommunication {
-                    job_id: self.job_id.read().await.clone().unwrap(),
-                    action_type: DWCActionType::GetMetaData,
-                    play_audio_url: None,
-                    guild_id: self.guild_id.clone(),
-                    request_id: Some(nanoid!()),
-                    new_volume: None,
-                    seek_position: None,
-                    loop_times: None,
-                    worker_id: self.worker_id.read().await.clone().unwrap(),
-                    voice_channel_id: None,
-                }),
-                self.tx.clone(),
-                self.guild_id.clone(),
-            ))
-            .context(FailedToSendIPCRequestSnafu)?;
+    Ok(())
+}
+pub async fn resume_playback(guild_id: &str) -> Result<(), TrackActionError> {
+    let charcoal = CHARCOAL_INSTANCE
+        .get()
+        .context(FailedToGetCharcoalInstanceSnafu)?;
+    let players = charcoal.players.read().await;
+    let instance = players
+        .get(guild_id)
+        .context(FailedToGetPlayerInstanceSnafu)?;
+    instance
+        .bg_com_tx
+        .send(IPCData::new_from_main(
+            Message::DirectWorkerCommunication(DirectWorkerCommunication {
+                job_id: instance.job_id.read().await.clone().unwrap(),
+                action_type: DWCActionType::ResumePlayback,
+                play_audio_url: None,
+                guild_id: instance.guild_id.clone(),
+                request_id: Some(nanoid!()),
+                new_volume: None,
+                seek_position: None,
+                loop_times: None,
+                worker_id: instance.worker_id.read().await.clone().unwrap(),
+                voice_channel_id: None,
+            }),
+            instance.tx.clone(),
+            instance.guild_id.clone(),
+        ))
+        .context(FailedToSendIPCRequestSnafu)?;
 
-        Ok(())
-    }
+    Ok(())
+}
+pub async fn pause_playback(guild_id: &str) -> Result<(), TrackActionError> {
+    let charcoal = CHARCOAL_INSTANCE
+        .get()
+        .context(FailedToGetCharcoalInstanceSnafu)?;
+    let players = charcoal.players.read().await;
+    let instance = players
+        .get(guild_id)
+        .context(FailedToGetPlayerInstanceSnafu)?;
+    instance
+        .bg_com_tx
+        .send(IPCData::new_from_main(
+            Message::DirectWorkerCommunication(DirectWorkerCommunication {
+                job_id: instance.job_id.read().await.clone().unwrap(),
+                action_type: DWCActionType::PausePlayback,
+                play_audio_url: None,
+                guild_id: instance.guild_id.clone(),
+                request_id: Some(nanoid!()),
+                new_volume: None,
+                seek_position: None,
+                loop_times: None,
+                worker_id: instance.worker_id.read().await.clone().unwrap(),
+                voice_channel_id: None,
+            }),
+            instance.tx.clone(),
+            instance.guild_id.clone(),
+        ))
+        .context(FailedToSendIPCRequestSnafu)?;
+
+    Ok(())
+}
+pub async fn get_metadata(guild_id: &str) -> Result<(), TrackActionError> {
+    let charcoal = CHARCOAL_INSTANCE
+        .get()
+        .context(FailedToGetCharcoalInstanceSnafu)?;
+    let players = charcoal.players.read().await;
+    let instance = players
+        .get(guild_id)
+        .context(FailedToGetPlayerInstanceSnafu)?;
+    instance
+        .bg_com_tx
+        .send(IPCData::new_from_main(
+            Message::DirectWorkerCommunication(DirectWorkerCommunication {
+                job_id: instance.job_id.read().await.clone().unwrap(),
+                action_type: DWCActionType::GetMetaData,
+                play_audio_url: None,
+                guild_id: instance.guild_id.clone(),
+                request_id: Some(nanoid!()),
+                new_volume: None,
+                seek_position: None,
+                loop_times: None,
+                worker_id: instance.worker_id.read().await.clone().unwrap(),
+                voice_channel_id: None,
+            }),
+            instance.tx.clone(),
+            instance.guild_id.clone(),
+        ))
+        .context(FailedToSendIPCRequestSnafu)?;
+
+    Ok(())
 }

@@ -30,7 +30,7 @@ use charcoal_client::actions::channel_manager::ChannelManager;
 use charcoal_client::actions::player::Player;
 use charcoal_client::actions::track_manager::TrackManager;
 use charcoal_client::{
-    get_handler_from_serenity, get_handler_from_serenity_mutable, CharcoalConfig, PlayerObject,
+    get_handler_from_serenity, get_handler_from_serenity_mutable, CharcoalConfig, PlayerObjectData,
     SSLConfig,
 };
 
@@ -94,7 +94,7 @@ async fn main() {
 #[only_in(guilds)]
 async fn pause(ctx: &Context, msg: &Message) -> CommandResult {
     // Get the PlayerObject using a helper macro
-    let mut handler: Option<&PlayerObject> = None;
+    let mut handler: Option<&PlayerObjectData> = None;
     get_handler_from_serenity!(ctx, msg, handler);
 
     match handler {
@@ -113,7 +113,7 @@ async fn pause(ctx: &Context, msg: &Message) -> CommandResult {
 #[only_in(guilds)]
 async fn resume(ctx: &Context, msg: &Message) -> CommandResult {
     // Get the PlayerObject using a helper macro
-    let mut handler: Option<&PlayerObject> = None;
+    let mut handler: Option<&PlayerObjectData> = None;
     get_handler_from_serenity!(ctx, msg, handler);
 
     // If you don't want to use the macro you can also get the PlayerObject like this
@@ -179,15 +179,15 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
             "This should never happen because we checked the key exists in the if check above",
         );
         // Join the channel
-        handler.join_channel(connect_to.to_string(),false).await;
+        handler.join_channel(connect_to.to_string(), false).await;
     } else {
         // If we have not created the player create it and then join the channel
-        let handler = PlayerObject::new(guild_id.to_string(), mx.tx.clone()).await;
+        let handler = PlayerObjectData::new(guild_id.to_string(), mx.tx.clone()).await;
         // Make sure creating the PlayerObject worked
         match handler {
             Ok(mut handler) => {
                 // Join the channel
-                handler.join_channel(connect_to.to_string(),true).await;
+                handler.join_channel(connect_to.to_string(), true).await;
                 // Insert the newly created PlayerObject into the HashMap so we can use it later
                 mx.players
                     .write()
@@ -215,7 +215,7 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
 #[only_in(guilds)]
 async fn metadata(ctx: &Context, msg: &Message) -> CommandResult {
     // Get the PlayerObject using a helper macro
-    let mut handler: Option<&mut PlayerObject> = None;
+    let mut handler: Option<&mut PlayerObjectData> = None;
     // This get's a mutable PlayerObject instead of a constant one
     // Be careful where you use this as getting the playerobject as mutable locks the internal RwLock Mutex
     get_handler_from_serenity_mutable!(ctx, msg, handler);
@@ -237,7 +237,7 @@ async fn metadata(ctx: &Context, msg: &Message) -> CommandResult {
 #[only_in(guilds)]
 async fn loopforever(ctx: &Context, msg: &Message) -> CommandResult {
     // Get the PlayerObject using a helper macro
-    let mut handler: Option<&PlayerObject> = None;
+    let mut handler: Option<&PlayerObjectData> = None;
     get_handler_from_serenity!(ctx, msg, handler);
 
     match handler {
@@ -257,7 +257,7 @@ async fn loopforever(ctx: &Context, msg: &Message) -> CommandResult {
 #[only_in(guilds)]
 async fn leave(ctx: &Context, msg: &Message) -> CommandResult {
     // Get the PlayerObject using a helper macro
-    let mut handler: Option<&PlayerObject> = None;
+    let mut handler: Option<&PlayerObjectData> = None;
     get_handler_from_serenity!(ctx, msg, handler);
 
     match handler {
@@ -306,7 +306,7 @@ async fn play(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     }
 
     // Get the PlayerObject using a helper macro
-    let mut handler: Option<&mut PlayerObject> = None;
+    let mut handler: Option<&mut PlayerObjectData> = None;
     get_handler_from_serenity_mutable!(ctx, msg, handler);
 
     match handler {

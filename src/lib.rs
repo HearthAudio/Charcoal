@@ -3,54 +3,51 @@
 
 use crate::actions::channel_manager::CreateJobError;
 use crate::background::processor::{init_processor, IPCData};
-use crate::constants::{EXPIRATION_LAGGED_BY_1, EXPIRATION_LAGGED_BY_2, EXPIRATION_LAGGED_BY_4};
 use hearth_interconnect::messages::Message;
-use lazy_static::lazy_static;
-use log::{error, info};
-use rdkafka::producer::FutureProducer;
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::time::Duration;
-use tokio::sync::broadcast::error::TryRecvError;
-use tokio::sync::broadcast::{Receiver, Sender};
-use tokio::sync::{broadcast, Mutex, RwLock};
-use tokio::time;
 
+use log::info;
+
+use kanal::{Receiver, Sender};
+use prokio::time::sleep;
+use prokio::{Runtime, RuntimeBuilder};
+use serde_derive::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::{Arc, OnceLock};
+use std::time::Duration;
+use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 pub mod actions;
 pub mod background;
 pub(crate) mod constants;
 mod helpers;
-pub mod serenity;
-
+pub mod wasm_helper;
 use crate::background::connector::{initialize_client, initialize_producer};
-use rdkafka::consumer::StreamConsumer;
 
-lazy_static! {
-    pub(crate) static ref PRODUCER: Mutex<Option<FutureProducer>> = Mutex::new(None);
-    pub(crate) static ref CONSUMER: Mutex<Option<StreamConsumer>> = Mutex::new(None);
-    pub(crate) static ref TX: Mutex<Option<Sender<String>>> = Mutex::new(None);
-    pub(crate) static ref RX: Mutex<Option<Receiver<String>>> = Mutex::new(None);
-}
-
+// This global state is not much of an issue becuase it is not mutable so there is no need for a Mutex here to lock it. We use mutable state here so we can support WASM.
+// As the runtime can not be seralized or deseralized
+pub static CHARCOAL_INSTANCE: OnceLock<Arc<Charcoal>> = OnceLock::new();
 /// Represents an instance in a voice channel
-pub struct PlayerObject {
+#[derive(Debug)]
+pub struct PlayerObjectData {
     worker_id: Arc<RwLock<Option<String>>>,
     job_id: Arc<RwLock<Option<String>>>,
     guild_id: String,
     tx: Arc<Sender<IPCData>>,
+    rx: Arc<Receiver<IPCData>>,
     bg_com_tx: Sender<IPCData>,
 }
 
-impl PlayerObject {
+impl PlayerObjectData {
     /// Creates a new Player Object that can then be joined to channel and used to playback audio
     pub async fn new(guild_id: String, com_tx: Sender<IPCData>) -> Result<Self, CreateJobError> {
-        let (tx, _rx) = broadcast::channel(16);
+        let (tx, rx) = kanal::bounded(60);
 
-        let handler = PlayerObject {
+        let handler = PlayerObjectData {
             worker_id: Arc::new(RwLock::new(None)),
             job_id: Arc::new(RwLock::new(None)),
             guild_id,
             tx: Arc::new(tx),
+            rx: Arc::new(rx),
             bg_com_tx: com_tx,
         };
 
@@ -59,36 +56,38 @@ impl PlayerObject {
 }
 
 /// Stores Charcoal instance
+#[derive(Debug)]
 pub struct Charcoal {
-    pub players: Arc<RwLock<HashMap<String, PlayerObject>>>, // Guild ID to PlayerObject
-    pub tx: Sender<IPCData>,
-    pub rx: Receiver<IPCData>,
+    pub players: Arc<RwLock<HashMap<String, PlayerObjectData>>>, // Guild ID to PlayerObject
+    pub to_bg_tx: Sender<IPCData>,
+    from_bg_rx: Receiver<IPCData>,
+    pub(crate) runtime: Arc<Runtime>,
 }
 
-impl Charcoal {
-    fn start_global_checker(&mut self) {
-        info!("Started global data checker!");
-        let mut rxx = self.tx.subscribe();
-        let t_players = self.players.clone();
-        let mut tick_adjustments = 0;
-        tokio::task::spawn(async move {
-            let mut interval = time::interval(Duration::from_secs(1));
-
-            loop {
-                interval.tick().await;
-                let catch = rxx.try_recv();
-                match catch {
-                    Ok(c) => {
-                        if let IPCData::FromBackground(bg) = c {
+fn start_global_checker(
+    runtime: &Arc<Runtime>,
+    players: Arc<RwLock<HashMap<String, PlayerObjectData>>>,
+    from_bg_rx: Receiver<IPCData>,
+) {
+    info!("Started global data checker!");
+    runtime.spawn_pinned(move || async move {
+        loop {
+            sleep(Duration::from_millis(250)).await;
+            let catch = from_bg_rx.try_recv();
+            match catch {
+                Ok(c) => {
+                    if c.is_some() {
+                        println!("GDCR: {:?}", c.clone().unwrap());
+                        if let IPCData::FromBackground(bg) = c.unwrap() {
                             match bg.message {
                                 Message::ExternalJobExpired(je) => {
                                     info!("Job Expired: {}", je.job_id);
-                                    let mut t_p_write = t_players.write().await;
+                                    let mut t_p_write = players.write().await;
                                     t_p_write.remove(&je.guild_id);
                                 }
                                 Message::WorkerShutdownAlert(shutdown_alert) => {
                                     info!("Worker shutdown! Cancelling Players!");
-                                    let mut t_p_write = t_players.write().await;
+                                    let mut t_p_write = players.write().await;
                                     for job_id in shutdown_alert.affected_guild_ids {
                                         t_p_write.remove(&job_id);
                                     }
@@ -97,43 +96,11 @@ impl Charcoal {
                             }
                         }
                     }
-                    Err(e) => match e {
-                        TryRecvError::Empty => {}
-                        TryRecvError::Lagged(count) => {
-                            error!("Expiration Checker - Lagged by: {}", count);
-                            let mut tick_adjustment_ratio: f32 = tick_adjustments as f32;
-                            if count >= 4 {
-                                tick_adjustment_ratio =
-                                    (tick_adjustment_ratio * 1.2).clamp(1.0, 3.0);
-                                interval = time::interval(Duration::from_millis(
-                                    (EXPIRATION_LAGGED_BY_4 / tick_adjustment_ratio) as u64,
-                                ));
-                                tick_adjustments += 1;
-                            } else if count >= 2 {
-                                tick_adjustment_ratio =
-                                    (tick_adjustment_ratio * 1.2).clamp(1.0, 3.0);
-                                interval = time::interval(Duration::from_millis(
-                                    (EXPIRATION_LAGGED_BY_2 / tick_adjustment_ratio) as u64,
-                                ));
-                                tick_adjustments += 1;
-                            } else if count >= 1 {
-                                tick_adjustment_ratio =
-                                    (tick_adjustment_ratio * 1.2).clamp(1.0, 3.0);
-                                interval = time::interval(Duration::from_millis(
-                                    (EXPIRATION_LAGGED_BY_1 / tick_adjustment_ratio) as u64,
-                                ));
-                                tick_adjustments += 1;
-                            }
-                            info!("Performed auto adjustment to prevent lag new interval: {} milliseconds",interval.period().as_millis());
-                        }
-                        _ => {
-                            error!("Failed to receive expiration check with error: {}", e);
-                        }
-                    },
                 }
+                Err(_e) => {} //TODO: Handle
             }
-        });
-    }
+        }
+    });
 }
 
 #[derive(Clone)]
@@ -167,29 +134,29 @@ pub struct CharcoalConfig {
 }
 
 /// Initializes Charcoal Instance
-pub async fn init_charcoal(broker: String, config: CharcoalConfig) -> Arc<Mutex<Charcoal>> {
-    // This isn't great we should really switch to rdkafka instead of kafka
-
+pub async fn init_charcoal(broker: String, config: CharcoalConfig) {
     let consumer = initialize_client(&broker, &config).await;
 
     let producer = initialize_producer(&broker, &config);
 
-    let (tx, rx) = broadcast::channel(16);
+    let (to_bg_tx, to_bg_rx) = kanal::unbounded();
+    let (from_bg_tx, from_bg_rx) = kanal::unbounded();
+    let runtime = Arc::new(prokio::Runtime::default());
 
-    let global_rx = tx.subscribe();
-    let sub_tx = tx.clone();
-
-    tokio::task::spawn(async move {
-        init_processor(rx, sub_tx, consumer, producer, config).await;
+    runtime.spawn_pinned(move || async move {
+        init_processor(to_bg_rx, from_bg_tx, consumer, producer, config).await;
     });
 
+    let players = Arc::new(RwLock::new(HashMap::new()));
+
+    start_global_checker(&runtime, players.clone(), from_bg_rx.clone()); // Start checking for expired jobs
+
     let mut c_instance = Charcoal {
-        players: Arc::new(RwLock::new(HashMap::new())),
-        tx,
-        rx: global_rx,
+        players,
+        to_bg_tx,
+        from_bg_rx,
+        runtime: runtime,
     };
 
-    c_instance.start_global_checker(); // Start checking for expired jobs
-
-    Arc::new(Mutex::new(c_instance))
+    CHARCOAL_INSTANCE.set(Arc::new(c_instance)).unwrap();
 }

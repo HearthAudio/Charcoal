@@ -20,8 +20,14 @@ serde_json = "1.0.96"
 async-trait = "0.1.68"
 futures = "0.3.28"
 lazy_static = "1.4.0"
-tokio = { version = "1.28.1", features = ['full'] }
 env_logger = "0.10.0"
 async_fn_traits = "0.1.1"
 hearth-interconnect = "0.1.0"
 rdkafka = { version = "0.31", features = ["cmake-build","ssl"] }
+prokio = "0.1.0"
+kanal = "0.1.0-pre8"
+tokio = { version = "1.28.2", features = ["full"] }
+wasm-bindgen = "0.2.86"
+wasm-bindgen-futures = "0.4.36"
+serde = "1.0.164"
+serde_derive = "1.0.164"
